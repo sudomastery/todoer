@@ -1,0 +1,29 @@
+# dependencies
+node_modules/
+
+# next.js
+apps/web/.next/
+apps/web/out/
+apps/web/.vercel
+
+# expo
+apps/mobile/.expo/
+apps/mobile/dist/
+apps/mobile/android/
+apps/mobile/ios/
+*.apk
+*.aab
+
+# env
+.env
+.env.local
+.env*.local
+
+# misc
+.DS_Store
+*.tsbuildinfo
+npm-debug.log*
+
+# supabase
+supabase/.branches
+supabase/.temp

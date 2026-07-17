@@ -1,0 +1,32 @@
+{
+  "expo": {
+    "name": "Todoer",
+    "slug": "todoer",
+    "version": "1.0.0",
+    "scheme": "todoer",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "backgroundColor": "#dc4c3e"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.todoer.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#dc4c3e",
+        "foregroundImage": "./assets/android-icon-foreground.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-status-bar"
+    ]
+  }
+}
