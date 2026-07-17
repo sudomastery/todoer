@@ -1,0 +1,146 @@
+// Browser end-to-end test of the Todoer web app against local Supabase.
+// Usage: BASE_URL=http://localhost:3000 node test-web-ui.mjs
+import { chromium } from 'playwright';
+
+const BASE = process.env.BASE_URL ?? 'http://localhost:3000';
+let passed = 0;
+let failed = 0;
+const shots = [];
+
+function check(name, cond, detail = '') {
+  if (cond) {
+    passed++;
+    console.log(`  ok: ${name}`);
+  } else {
+    failed++;
+    console.log(`FAIL: ${name} ${detail}`);
+  }
+}
+
+const browser = await chromium.launch();
+const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+page.setDefaultTimeout(15000);
+
+async function shot(name) {
+  const path = `${process.env.SHOT_DIR ?? '.'}/${name}.png`;
+  await page.screenshot({ path });
+  shots.push(path);
+}
+
+try {
+  console.log('== landing and auth ==');
+  await page.goto(BASE);
+  check('landing renders', await page.getByText('Clarity, finally.').isVisible());
+
+  await page.goto(`${BASE}/app/today`);
+  await page.waitForURL('**/login');
+  check('unauthenticated /app redirects to login', page.url().includes('/login'));
+
+  const email = `e2e.${Date.now()}@test.local`;
+  await page.goto(`${BASE}/signup`);
+  await page.getByPlaceholder('Your name').fill('E2E Tester');
+  await page.getByPlaceholder('Email').fill(email);
+  await page.getByPlaceholder('Password').fill('password-123');
+  await page.getByRole('button', { name: 'Sign up' }).click();
+  await page.waitForURL('**/app/today', { timeout: 20000 });
+  check('signup lands on Today', true);
+  check('sidebar shows user name', await page.getByText('E2E Tester').isVisible());
+  await page.getByRole('link', { name: /Inbox/ }).first().waitFor();
+  check('Inbox nav present (trigger-created project loaded)', true);
+
+  console.log('== quick add with natural language ==');
+  await page.keyboard.press('q');
+  const qa = page.getByPlaceholder(/Task name, e.g./);
+  await qa.waitFor();
+  await qa.fill('Pay rent tomorrow 9am p1 @finance every month');
+  check('due chip parsed Tomorrow', await page.getByText('Tomorrow', { exact: true }).first().isVisible());
+  check('priority chip parsed P1', await page.getByText('P1', { exact: true }).first().isVisible());
+  check('recurrence chip parsed', await page.getByText(/every month/).first().isVisible());
+  await page.getByRole('button', { name: 'Add task' }).click();
+  await page.waitForTimeout(600);
+  await page.keyboard.press('Escape');
+
+  console.log('== add a task due today from Today view ==');
+  const main = page.getByRole('main');
+  await main.getByRole('button', { name: 'Add task' }).first().click();
+  const inline = page.getByPlaceholder(/Task name, e.g./);
+  await inline.fill('Buy milk p2');
+  await main.getByRole('button', { name: 'Add task', exact: true }).last().click();
+  await page.waitForSelector('text=Buy milk');
+  await page.keyboard.press('Escape');
+  check('task appears in Today', await page.getByText('Buy milk').isVisible());
+  await shot('today');
+
+  console.log('== complete a task ==');
+  const row = page.locator('div', { hasText: 'Buy milk' });
+  await page.getByRole('button', { name: 'Complete task' }).first().click();
+  await page.waitForTimeout(800);
+  check('completed task leaves Today', !(await page.getByText('Buy milk').isVisible().catch(() => false)));
+
+  await page.getByRole('link', { name: 'Completed' }).click();
+  await page.waitForURL('**/app/completed');
+  await page.getByText('Buy milk').waitFor();
+  check('task shows in Completed view', true);
+
+  console.log('== upcoming shows the recurring task ==');
+  await page.getByRole('link', { name: 'Upcoming' }).click();
+  await page.waitForURL('**/app/upcoming');
+  check('recurring task in Upcoming', await page.getByText('Pay rent').first().isVisible());
+  await shot('upcoming');
+
+  console.log('== labels ==');
+  await page.getByRole('link', { name: /Filters/ }).click();
+  await page.waitForURL('**/app/labels');
+  check('auto-created label listed', await page.getByText('finance').first().isVisible());
+  await page.getByRole('link', { name: /finance/ }).click();
+  await page.waitForURL('**/app/label/**');
+  await page.getByText('Pay rent').first().waitFor();
+  check('label view shows task', true);
+
+  console.log('== project with section ==');
+  await page.getByRole('button', { name: 'Add project' }).click();
+  await page.locator('input').first().fill('Groceries');
+  await page.getByRole('button', { name: 'Add', exact: true }).click();
+  await page.getByRole('link', { name: 'Groceries' }).waitFor(); // appears in sidebar
+  await page.getByRole('link', { name: 'Groceries' }).click();
+  await page.waitForURL('**/app/project/**');
+  check('project page opens', await page.getByRole('heading', { name: 'Groceries' }).isVisible());
+
+  await page.getByRole('main').getByRole('button', { name: 'Add task' }).first().click();
+  await page.getByPlaceholder(/Task name, e.g./).fill('Eggs saturday');
+  await page.getByRole('main').getByRole('button', { name: 'Add task', exact: true }).last().click();
+  await page.waitForSelector('text=Eggs');
+  await page.keyboard.press('Escape');
+  check('task added to project', await page.getByText('Eggs').first().isVisible());
+  await shot('project');
+
+  console.log('== search ==');
+  await page.keyboard.press('Control+k');
+  await page.getByPlaceholder('Search tasks and projects').fill('rent');
+  check('search finds task', await page.getByText('Pay rent').first().isVisible());
+  await page.keyboard.press('Escape');
+
+  console.log('== dark mode ==');
+  await page.getByText('E2E Tester').click();
+  await page.getByText('Dark theme').click();
+  await page.waitForTimeout(400);
+  const isDark = await page.evaluate(() => document.documentElement.classList.contains('dark'));
+  check('dark class applied', isDark);
+  await shot('dark-mode');
+
+  console.log('== logout ==');
+  await page.getByText('E2E Tester').click();
+  await page.getByText('Log out').click();
+  await page.waitForURL('**/login', { timeout: 15000 });
+  check('logout returns to login', true);
+} catch (e) {
+  failed++;
+  console.log('FATAL:', e.message.split('\n')[0]);
+  await shot('failure');
+} finally {
+  await browser.close();
+}
+
+console.log(`\n${passed} passed, ${failed} failed`);
+console.log('screenshots:', shots.join(', '));
+process.exit(failed ? 1 : 0);

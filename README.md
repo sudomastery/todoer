@@ -74,6 +74,21 @@ eas build --profile preview --platform android
 
 When the build finishes you get a download link for an APK you can install directly on any Android phone. For Play Store distribution, use `eas build --platform android` (production profile, builds an AAB) and `eas submit`.
 
+## Testing
+
+Four end-to-end suites live in `e2e/` (see `e2e/README.md` for setup):
+
+```bash
+npm run test:logic      # parser/recurrence/date logic, no services needed
+npm run test:backend    # local Supabase: trigger, RLS, CRUD, constraints, realtime
+npm run test:web        # Playwright browser flow through the whole web app
+npm run test:sync       # realtime sync between two logged-in browser windows
+npm run test:e2e        # all of the above
+```
+
+Branch flow: feature branches merge into `dev`; `dev` merges into `main` only after
+the suites pass, and production deploys from `main`.
+
 ## Development notes
 
 - `npm run build` builds the web app; `npm run typecheck` typechecks every workspace.
