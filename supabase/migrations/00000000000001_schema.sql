@@ -130,6 +130,15 @@ create trigger on_auth_user_created
   for each row execute function public.handle_new_user();
 
 -- ============================================================
+-- Grants
+-- RLS restricts rows; these grant the base table privileges that
+-- signed-in users need. anon gets nothing: there is no public data.
+-- ============================================================
+
+grant usage on schema public to authenticated;
+grant select, insert, update, delete on all tables in schema public to authenticated;
+
+-- ============================================================
 -- Row Level Security
 -- ============================================================
 
