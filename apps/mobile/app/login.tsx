@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { USERNAME_RE, isUsernameAvailable, resolveLoginEmail } from '@todoer/shared';
 import { supabase } from '../lib/supabase';
 import { useTheme } from '../lib/theme';
 
@@ -17,6 +18,8 @@ export default function LoginScreen() {
   const t = useTheme();
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [name, setName] = useState('');
+  const [username, setUsername] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -26,19 +29,41 @@ export default function LoginScreen() {
   async function submit() {
     setError(null);
     setNotice(null);
-    setLoading(true);
     if (mode === 'signup') {
+      if (!USERNAME_RE.test(username)) {
+        return setError('Usernames are 3-30 characters: letters, numbers, and underscores only.');
+      }
+      setLoading(true);
+      try {
+        if (!(await isUsernameAvailable(supabase, username))) {
+          setLoading(false);
+          return setError('That username is taken.');
+        }
+      } catch {
+        // availability check is best-effort; the database still enforces uniqueness
+      }
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { full_name: name } },
+        options: { data: { full_name: name, username } },
       });
       setLoading(false);
       if (error) return setError(error.message);
       if (!data.session) setNotice('Check your email to confirm your account, then log in.');
       return;
     }
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    setLoading(true);
+    let loginEmail: string | null = null;
+    try {
+      loginEmail = await resolveLoginEmail(supabase, identifier);
+    } catch {
+      loginEmail = null;
+    }
+    if (!loginEmail) {
+      setLoading(false);
+      return setError('No account found with that username.');
+    }
+    const { error } = await supabase.auth.signInWithPassword({ email: loginEmail, password });
     setLoading(false);
     if (error) setError(error.message);
   }
@@ -60,23 +85,45 @@ export default function LoginScreen() {
       </Text>
 
       {mode === 'signup' && (
+        <>
+          <TextInput
+            style={inputStyle}
+            placeholder="Your name"
+            placeholderTextColor={t.fgFaint}
+            value={name}
+            onChangeText={setName}
+          />
+          <TextInput
+            style={inputStyle}
+            placeholder="Username"
+            placeholderTextColor={t.fgFaint}
+            autoCapitalize="none"
+            autoCorrect={false}
+            value={username}
+            onChangeText={setUsername}
+          />
+          <TextInput
+            style={inputStyle}
+            placeholder="Email"
+            placeholderTextColor={t.fgFaint}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            value={email}
+            onChangeText={setEmail}
+          />
+        </>
+      )}
+      {mode === 'login' && (
         <TextInput
           style={inputStyle}
-          placeholder="Your name"
+          placeholder="Email or username"
           placeholderTextColor={t.fgFaint}
-          value={name}
-          onChangeText={setName}
+          autoCapitalize="none"
+          autoCorrect={false}
+          value={identifier}
+          onChangeText={setIdentifier}
         />
       )}
-      <TextInput
-        style={inputStyle}
-        placeholder="Email"
-        placeholderTextColor={t.fgFaint}
-        autoCapitalize="none"
-        keyboardType="email-address"
-        value={email}
-        onChangeText={setEmail}
-      />
       <TextInput
         style={inputStyle}
         placeholder="Password"
