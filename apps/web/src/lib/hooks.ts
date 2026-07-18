@@ -18,6 +18,7 @@ import {
   deleteTask,
   ensureLabels,
   fetchActiveTasks,
+  fetchCompletedSince,
   fetchCompletedTasks,
   fetchLabels,
   fetchProjects,
@@ -72,6 +73,14 @@ export function useCompletedTasks() {
   return useQuery({ queryKey: ['tasks-completed'], queryFn: () => fetchCompletedTasks(db) });
 }
 
+export function useCompletedSince(sinceIso: string) {
+  const db = useSupabase();
+  return useQuery({
+    queryKey: ['tasks-completed-since', sinceIso],
+    queryFn: () => fetchCompletedSince(db, sinceIso),
+  });
+}
+
 // ============================================================
 // Realtime: any change to my rows refetches the affected caches
 // ============================================================
@@ -86,6 +95,7 @@ export function useRealtimeSync() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => {
         qc.invalidateQueries({ queryKey: ['tasks'] });
         qc.invalidateQueries({ queryKey: ['tasks-completed'] });
+        qc.invalidateQueries({ queryKey: ['tasks-completed-since'] });
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'task_labels' }, () => {
         qc.invalidateQueries({ queryKey: ['tasks'] });
@@ -114,6 +124,7 @@ export function useRealtimeSync() {
 function invalidateTasks(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: ['tasks'] });
   qc.invalidateQueries({ queryKey: ['tasks-completed'] });
+  qc.invalidateQueries({ queryKey: ['tasks-completed-since'] });
 }
 
 export function useCreateTask() {

@@ -5,13 +5,17 @@ import { MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import {
   useActiveTasks,
+  useCompletedTasks,
   useCreateSection,
   useDeleteSection,
   useProjects,
   useSections,
   useUpdateSection,
 } from '@/lib/hooks';
+import { useDisplayPrefs } from '@/lib/display';
 import { AddTaskButton, TaskList } from '@/components/task-list';
+import { TaskView } from '@/components/task-view';
+import { DisplayMenu } from '@/components/display-menu';
 import { ProjectDialog } from '@/components/project-dialog';
 import {
   Dropdown,
@@ -91,6 +95,9 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
   const router = useRouter();
   const { data: projects, isLoading } = useProjects();
   const { data: sections } = useSections();
+  const { data: tasks } = useActiveTasks();
+  const { data: completed } = useCompletedTasks();
+  const display = useDisplayPrefs(`project.${id}`);
   const createSection = useCreateSection();
   const [editing, setEditing] = useState(false);
 
@@ -113,24 +120,41 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
     );
   }
 
+  const all = tasks ?? [];
+  const projectTasks = all.filter((t) => t.project_id === project.id);
+  const projectCompleted = (completed ?? []).filter((t) => t.project_id === project.id);
+
   return (
     <div>
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">{project.name}</h1>
-        {!project.is_inbox && (
-          <IconButton label="Edit project" onClick={() => setEditing(true)}>
-            <Pencil className="h-4 w-4" />
-          </IconButton>
-        )}
+        <div className="flex items-center gap-1">
+          <DisplayMenu state={display} hideGroupProject />
+          {!project.is_inbox && (
+            <IconButton label="Edit project" onClick={() => setEditing(true)}>
+              <Pencil className="h-4 w-4" />
+            </IconButton>
+          )}
+        </div>
       </div>
 
-      <SectionBlock sectionId={null} name={null} projectId={project.id} />
-      {/* fallback add button when the no-section block is hidden */}
-      <NoSectionAdd projectId={project.id} />
+      <TaskView
+        prefs={display.prefs}
+        tasks={projectTasks}
+        completedTasks={projectCompleted}
+        allTasks={all}
+        fallback={
+          <>
+            <SectionBlock sectionId={null} name={null} projectId={project.id} />
+            {/* fallback add button when the no-section block is hidden */}
+            <NoSectionAdd projectId={project.id} />
 
-      {projectSections.map((s) => (
-        <SectionBlock key={s.id} sectionId={s.id} name={s.name} projectId={project.id} />
-      ))}
+            {projectSections.map((s) => (
+              <SectionBlock key={s.id} sectionId={s.id} name={s.name} projectId={project.id} />
+            ))}
+          </>
+        }
+      />
 
       <button
         type="button"

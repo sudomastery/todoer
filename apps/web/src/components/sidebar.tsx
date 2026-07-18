@@ -8,6 +8,7 @@ import clsx from 'clsx';
 import {
   Calendar,
   CalendarDays,
+  BarChart2,
   CheckCircle2,
   ChevronDown,
   ChevronRight,
@@ -297,6 +298,12 @@ export function Sidebar({
           icon={<CheckCircle2 className="h-4 w-4 text-fg-secondary" />}
           label="Completed"
           active={pathname === '/app/completed'}
+        />
+        <NavLink
+          href="/app/stats"
+          icon={<BarChart2 className="h-4 w-4 text-teal-600" />}
+          label="Productivity"
+          active={pathname === '/app/stats'}
         />
       </nav>
 
