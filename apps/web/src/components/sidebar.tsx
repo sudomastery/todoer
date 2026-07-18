@@ -24,6 +24,7 @@ import {
   Star,
   StarOff,
   Sun,
+  Volume2,
   Tag,
   Trash2,
 } from 'lucide-react';
@@ -45,6 +46,7 @@ import {
   IconButton,
 } from '@/components/ui';
 import { createClient } from '@/lib/supabase/client';
+import { SoundSettingsDialog } from '@/components/sound-settings';
 
 function NavLink({
   href,
@@ -175,6 +177,7 @@ export function Sidebar({
   const { data: tasks } = useActiveTasks();
   const [addingProject, setAddingProject] = useState(false);
   const [projectsExpanded, setProjectsExpanded] = useState(true);
+  const [soundSettingsOpen, setSoundSettingsOpen] = useState(false);
 
   if (!open) return null;
 
@@ -230,6 +233,9 @@ export function Sidebar({
                 </>
               )}
             </DropdownItem>
+            <DropdownItem onSelect={() => setSoundSettingsOpen(true)}>
+              <Volume2 className="h-4 w-4" /> Completion sound
+            </DropdownItem>
             <DropdownSeparator />
             <DropdownItem onSelect={logout}>
               <LogOut className="h-4 w-4" /> Log out
@@ -240,6 +246,7 @@ export function Sidebar({
           <PanelLeft className="h-5 w-5" />
         </IconButton>
       </div>
+      <SoundSettingsDialog open={soundSettingsOpen} onOpenChange={setSoundSettingsOpen} />
 
       <div className="px-3">
         <button

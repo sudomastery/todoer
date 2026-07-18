@@ -165,6 +165,14 @@ try {
   check('search finds task', await page.getByText('Pay rent').first().isVisible());
   await page.keyboard.press('Escape');
 
+  console.log('== completion sound setting ==');
+  await page.getByText('E2E Tester').click();
+  await page.getByText('Completion sound').click();
+  await page.getByRole('button', { name: 'Ding' }).click();
+  const soundPref = await page.evaluate(() => localStorage.getItem('todoer.completionSound'));
+  check('sound preference persisted', soundPref === 'ding', soundPref);
+  await page.keyboard.press('Escape');
+
   console.log('== dark mode ==');
   await page.getByText('E2E Tester').click();
   await page.getByText('Dark theme').click();
