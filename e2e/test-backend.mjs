@@ -220,5 +220,24 @@ await deleteProject(dbA, inboxA.id); // guarded by .eq('is_inbox', false)
 check('inbox cannot be deleted via data layer',
   (await fetchProjects(dbA)).some((p) => p.is_inbox) && inboxStillThere.length === 1);
 
+console.log('== account deletion ==');
+const { error: anonDelErr } = await newDb().rpc('delete_account');
+check('delete_account rejected for anon', anonDelErr !== null, anonDelErr?.message);
+
+const dbC = newDb();
+const charlie = { email: `charlie.${stamp}@test.local`, password: 'password-123' };
+await signup(dbC, charlie, 'Charlie', `charlie_${stamp}`);
+const cProjects = await fetchProjects(dbC);
+await createTask(dbC, { content: 'doomed task', project_id: cProjects[0].id });
+const { error: delErr } = await dbC.rpc('delete_account');
+check('delete_account succeeds for owner', delErr === null, delErr?.message);
+const { error: loginAfterDelete } = await newDb().auth.signInWithPassword({
+  email: charlie.email,
+  password: charlie.password,
+});
+check('deleted account can no longer log in', loginAfterDelete !== null);
+const { data: cEmail } = await newDb().rpc('email_for_username', { p_username: `charlie_${stamp}` });
+check('deleted account username freed', cEmail === null, JSON.stringify(cEmail));
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

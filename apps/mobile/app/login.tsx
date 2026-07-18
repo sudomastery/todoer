@@ -68,6 +68,27 @@ export default function LoginScreen() {
     if (error) setError(error.message);
   }
 
+  async function forgotPassword() {
+    setError(null);
+    setNotice(null);
+    if (!identifier.trim()) return setError('Enter your email or username first.');
+    setLoading(true);
+    let email: string | null = null;
+    try {
+      email = await resolveLoginEmail(supabase, identifier);
+    } catch {
+      email = null;
+    }
+    if (!email) {
+      setLoading(false);
+      return setError('No account found with that username.');
+    }
+    const { error } = await supabase.auth.resetPasswordForEmail(email);
+    setLoading(false);
+    if (error) return setError(error.message);
+    setNotice('Check your email for a password reset link.');
+  }
+
   const inputStyle = [styles.input, { borderColor: t.border, color: t.fg, backgroundColor: t.bgElevated }];
 
   return (
@@ -133,6 +154,12 @@ export default function LoginScreen() {
         onChangeText={setPassword}
       />
 
+      {mode === 'login' && (
+        <Pressable onPress={forgotPassword} disabled={loading}>
+          <Text style={[styles.forgot, { color: t.fgSecondary }]}>Forgot password?</Text>
+        </Pressable>
+      )}
+
       {error && <Text style={styles.error}>{error}</Text>}
       {notice && <Text style={styles.notice}>{notice}</Text>}
 
@@ -184,6 +211,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     marginBottom: 12,
   },
+  forgot: { fontSize: 13, textAlign: 'right', marginBottom: 10 },
   error: { color: '#d1453b', fontSize: 13, marginBottom: 8 },
   notice: { color: '#246fe0', fontSize: 13, marginBottom: 8 },
   button: {

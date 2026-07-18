@@ -181,11 +181,52 @@ try {
   check('dark class applied', isDark);
   await shot('dark-mode');
 
+  console.log('== password reset page ==');
+  await page.goto(`${BASE}/forgot-password`);
+  await page.getByPlaceholder('Email or username').fill(email);
+  await page.getByRole('button', { name: 'Send reset link' }).click();
+  await page.getByText('Check your email for a password reset link.').waitFor();
+  check('forgot password sends reset email', true);
+
+  console.log('== export ==');
+  await page.goto(`${BASE}/app/today`);
+  await page.getByText('E2E Tester').click();
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByText('Export data').click();
+  const download = await downloadPromise;
+  const exportPath = `${process.env.SHOT_DIR ?? '.'}/todoer-export-test.json`;
+  await download.saveAs(exportPath);
+  const { readFileSync } = await import('node:fs');
+  const exported = JSON.parse(readFileSync(exportPath, 'utf8'));
+  check('export is valid todoer json', exported.format === 'todoer-export');
+  check(
+    'export contains projects and tasks',
+    exported.projects.length >= 2 && exported.tasks.length >= 3,
+    `projects=${exported.projects?.length} tasks=${exported.tasks?.length}`,
+  );
+
   console.log('== logout ==');
   await page.getByText('E2E Tester').click();
   await page.getByText('Log out').click();
   await page.waitForURL('**/login', { timeout: 15000 });
   check('logout returns to login', true);
+
+  console.log('== account deletion ==');
+  await page.getByPlaceholder('Email or username').fill(email);
+  await page.getByPlaceholder('Password').fill('password-123');
+  await page.getByRole('button', { name: 'Log in' }).click();
+  await page.waitForURL('**/app/today', { timeout: 20000 });
+  page.once('dialog', (d) => d.accept());
+  await page.getByText('E2E Tester').click();
+  await page.getByText('Delete account').click();
+  await page.waitForURL(BASE + '/', { timeout: 15000 });
+  check('account deletion returns to landing', true);
+  await page.goto(`${BASE}/login`);
+  await page.getByPlaceholder('Email or username').fill(email);
+  await page.getByPlaceholder('Password').fill('password-123');
+  await page.getByRole('button', { name: 'Log in' }).click();
+  await page.getByText('Invalid login credentials').waitFor();
+  check('deleted account cannot log in', true);
 } catch (e) {
   failed++;
   console.log('FATAL:', e.message.split('\n')[0]);
