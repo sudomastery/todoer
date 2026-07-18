@@ -276,3 +276,46 @@ export async function fetchCompletedSince(db: Client, sinceIso: string): Promise
   throwIf(error);
   return withLabelIds((data ?? []) as never);
 }
+
+// ============================================================
+// Account: export and deletion
+// ============================================================
+
+export interface TodoerExport {
+  format: 'todoer-export';
+  version: 1;
+  exported_at: string;
+  projects: Project[];
+  sections: Section[];
+  labels: Label[];
+  tasks: TaskWithLabels[];
+}
+
+/** Everything the user owns, including completed tasks, as one JSON document. */
+export async function buildExport(db: Client): Promise<TodoerExport> {
+  const [projects, sections, labels] = await Promise.all([
+    fetchProjects(db),
+    fetchSections(db),
+    fetchLabels(db),
+  ]);
+  const { data, error } = await db
+    .from('tasks')
+    .select('*, task_labels(label_id)')
+    .order('created_at', { ascending: true });
+  throwIf(error);
+  return {
+    format: 'todoer-export',
+    version: 1,
+    exported_at: new Date().toISOString(),
+    projects,
+    sections,
+    labels,
+    tasks: withLabelIds((data ?? []) as never),
+  };
+}
+
+/** Permanently deletes the signed-in user's account and all their data. */
+export async function deleteAccount(db: Client): Promise<void> {
+  const { error } = await db.rpc('delete_account');
+  throwIf(error);
+}

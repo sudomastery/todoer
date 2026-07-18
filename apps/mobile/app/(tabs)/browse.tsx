@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { colorHex } from '@todoer/shared';
+import { buildExport, colorHex, deleteAccount } from '@todoer/shared';
 import {
   useActiveTasks,
   useCreateProject,
@@ -157,16 +157,62 @@ export default function BrowseScreen() {
       <SoundSetting />
 
       <Pressable
+        onPress={async () => {
+          try {
+            const data = await buildExport(supabase);
+            await Share.share({
+              title: 'Todoer export',
+              message: JSON.stringify(data, null, 2),
+            });
+          } catch (e) {
+            Alert.alert('Export failed', e instanceof Error ? e.message : 'Unknown error');
+          }
+        }}
+        style={[styles.logout, { borderColor: t.border }]}
+      >
+        <Ionicons name="download-outline" size={18} color={t.fgSecondary} />
+        <Text style={{ color: t.fgSecondary, fontSize: 14, fontWeight: '500' }}>Export data</Text>
+      </Pressable>
+
+      <Pressable
         onPress={() =>
           Alert.alert('Log out', 'Are you sure you want to log out?', [
             { text: 'Cancel', style: 'cancel' },
             { text: 'Log out', style: 'destructive', onPress: () => supabase.auth.signOut() },
           ])
         }
-        style={[styles.logout, { borderColor: t.border }]}
+        style={[styles.logout, { borderColor: t.border, marginTop: 12 }]}
       >
         <Ionicons name="log-out-outline" size={18} color={t.fgSecondary} />
         <Text style={{ color: t.fgSecondary, fontSize: 14, fontWeight: '500' }}>Log out</Text>
+      </Pressable>
+
+      <Pressable
+        onPress={() =>
+          Alert.alert(
+            'Delete account',
+            'This permanently erases your account and every project, task, and label. It cannot be undone.',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              {
+                text: 'Delete forever',
+                style: 'destructive',
+                onPress: async () => {
+                  try {
+                    await deleteAccount(supabase);
+                    await supabase.auth.signOut();
+                  } catch (e) {
+                    Alert.alert('Could not delete account', e instanceof Error ? e.message : 'Unknown error');
+                  }
+                },
+              },
+            ],
+          )
+        }
+        style={[styles.logout, { borderColor: '#d1453b', marginTop: 12 }]}
+      >
+        <Ionicons name="trash-outline" size={18} color="#d1453b" />
+        <Text style={{ color: '#d1453b', fontSize: 14, fontWeight: '500' }}>Delete account</Text>
       </Pressable>
     </ScrollView>
   );

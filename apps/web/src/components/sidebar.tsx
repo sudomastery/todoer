@@ -11,6 +11,7 @@ import {
   BarChart2,
   CheckCircle2,
   ChevronDown,
+  Download,
   ChevronRight,
   Hash,
   Inbox,
@@ -28,7 +29,7 @@ import {
   Tag,
   Trash2,
 } from 'lucide-react';
-import { colorHex, isOverdue, isToday, todayISO, type Project } from '@todoer/shared';
+import { buildExport, colorHex, deleteAccount, isOverdue, isToday, todayISO, type Project } from '@todoer/shared';
 import {
   useActiveTasks,
   useDeleteProject,
@@ -199,6 +200,34 @@ export function Sidebar({
     router.refresh();
   }
 
+  async function exportData() {
+    const data = await buildExport(createClient());
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `todoer-export-${todayISO()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function removeAccount() {
+    const ok = confirm(
+      'Delete your account? This permanently erases every project, task, and label. This cannot be undone. Consider using Export data first.',
+    );
+    if (!ok) return;
+    const supabase = createClient();
+    try {
+      await deleteAccount(supabase);
+    } catch (e) {
+      alert(`Could not delete the account: ${e instanceof Error ? e.message : 'unknown error'}`);
+      return;
+    }
+    await supabase.auth.signOut();
+    router.push('/');
+    router.refresh();
+  }
+
   return (
     <aside className="flex w-72 shrink-0 flex-col border-r border-border-default bg-bg-sidebar">
       <div className="flex items-center justify-between px-3 py-3">
@@ -236,9 +265,15 @@ export function Sidebar({
             <DropdownItem onSelect={() => setSoundSettingsOpen(true)}>
               <Volume2 className="h-4 w-4" /> Completion sound
             </DropdownItem>
+            <DropdownItem onSelect={exportData}>
+              <Download className="h-4 w-4" /> Export data
+            </DropdownItem>
             <DropdownSeparator />
             <DropdownItem onSelect={logout}>
               <LogOut className="h-4 w-4" /> Log out
+            </DropdownItem>
+            <DropdownItem danger onSelect={removeAccount}>
+              <Trash2 className="h-4 w-4" /> Delete account
             </DropdownItem>
           </DropdownContent>
         </Dropdown>

@@ -146,6 +146,14 @@ export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
             className={inputClass}
           />
 
+          {mode === 'login' && (
+            <p className="text-right text-xs">
+              <Link href="/forgot-password" className="text-fg-secondary hover:text-brand hover:underline">
+                Forgot password?
+              </Link>
+            </p>
+          )}
+
           {error && <p className="text-sm text-p1">{error}</p>}
           {notice && <p className="text-sm text-p3">{notice}</p>}
 
