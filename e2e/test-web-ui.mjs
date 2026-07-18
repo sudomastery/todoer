@@ -115,6 +115,50 @@ try {
   check('task added to project', await page.getByText('Eggs').first().isVisible());
   await shot('project');
 
+  console.log('== display options ==');
+  await page.getByRole('button', { name: 'Display' }).click();
+  await page.getByRole('button', { name: 'Board' }).click();
+  await page.keyboard.press('Escape');
+  await page.getByRole('heading', { name: 'Tasks' }).waitFor();
+  check('board layout renders a column', true);
+
+  await page.getByRole('button', { name: 'Display' }).click();
+  await page.getByLabel('Grouping').selectOption('priority');
+  await page.keyboard.press('Escape');
+  await page.getByRole('heading', { name: /Priority \d/ }).first().waitFor();
+  check('board grouped by priority', true);
+
+  await page.getByRole('button', { name: 'Display' }).click();
+  await page.getByRole('button', { name: 'Calendar' }).click();
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Next month' }).waitFor();
+  check('calendar layout renders', true);
+  await shot('calendar');
+
+  await page.getByRole('button', { name: 'Display' }).click();
+  await page.getByLabel('Priority filter').selectOption('1');
+  await page.getByRole('button', { name: 'List' }).click();
+  await page.keyboard.press('Escape');
+  check('priority filter applied without error', true);
+  await page.getByRole('button', { name: 'Display' }).click();
+  await page.getByRole('button', { name: 'Reset all' }).click();
+  await page.keyboard.press('Escape');
+  await page.getByText('Eggs').first().waitFor();
+  check('reset restores default list', true);
+
+  console.log('== productivity stats ==');
+  await page.getByRole('link', { name: 'Productivity' }).click();
+  await page.waitForURL('**/app/stats');
+  await page.getByText('Completed this week').waitFor();
+  check('stats page renders tiles', true);
+  check(
+    'daily completions chart renders',
+    await page.getByRole('img', { name: 'Bar chart of tasks completed per day' }).isVisible(),
+  );
+  await shot('stats');
+  await page.getByRole('link', { name: 'Groceries' }).click();
+  await page.waitForURL('**/app/project/**');
+
   console.log('== search ==');
   await page.keyboard.press('Control+k');
   await page.getByPlaceholder('Search tasks and projects').fill('rent');

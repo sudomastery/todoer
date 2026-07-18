@@ -263,3 +263,16 @@ export async function resolveLoginEmail(db: Client, identifier: string): Promise
   throwIf(error);
   return (data as string | null) ?? null;
 }
+
+/** Completed tasks since an ISO date, for productivity stats. */
+export async function fetchCompletedSince(db: Client, sinceIso: string): Promise<TaskWithLabels[]> {
+  const { data, error } = await db
+    .from('tasks')
+    .select('*, task_labels(label_id)')
+    .eq('is_completed', true)
+    .gte('completed_at', `${sinceIso}T00:00:00`)
+    .order('completed_at', { ascending: true })
+    .limit(2000);
+  throwIf(error);
+  return withLabelIds((data ?? []) as never);
+}

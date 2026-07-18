@@ -2,16 +2,12 @@
 
 import { useState } from 'react';
 import { Plus } from 'lucide-react';
-import type { TaskWithLabels } from '@todoer/shared';
+import { sortTasksBy, type SortBy, type TaskWithLabels } from '@todoer/shared';
 import { TaskItem } from '@/components/task-item';
 import { TaskEditor } from '@/components/task-editor';
 
 export function sortTasks(tasks: TaskWithLabels[]): TaskWithLabels[] {
-  return [...tasks].sort((a, b) => {
-    if (a.priority !== b.priority) return a.priority - b.priority;
-    if (a.sort_order !== b.sort_order) return a.sort_order - b.sort_order;
-    return a.created_at.localeCompare(b.created_at);
-  });
+  return sortTasksBy(tasks, 'manual');
 }
 
 export function AddTaskButton({
@@ -63,14 +59,19 @@ export function TaskList({
   showProject = false,
   hideDue = false,
   emptyMessage,
+  sortBy = 'manual',
 }: {
   tasks: TaskWithLabels[];
   allTasks: TaskWithLabels[];
   showProject?: boolean;
   hideDue?: boolean;
   emptyMessage?: string;
+  sortBy?: SortBy;
 }) {
-  const topLevel = sortTasks(tasks.filter((t) => !t.parent_id || !tasks.some((p) => p.id === t.parent_id)));
+  const topLevel = sortTasksBy(
+    tasks.filter((t) => !t.parent_id || !tasks.some((p) => p.id === t.parent_id)),
+    sortBy,
+  );
 
   if (topLevel.length === 0 && emptyMessage) {
     return <p className="py-6 text-sm text-fg-faint">{emptyMessage}</p>;
