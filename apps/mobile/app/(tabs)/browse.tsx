@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,8 +9,66 @@ import {
   useLabels,
   useProjects,
 } from '../../lib/hooks';
+import {
+  COMPLETION_SOUNDS,
+  getSoundPref,
+  previewSound,
+  setSoundPref,
+  type SoundPref,
+} from '../../lib/sound';
 import { supabase } from '../../lib/supabase';
 import { useTheme } from '../../lib/theme';
+
+const SOUND_LABELS: Record<string, string> = {
+  off: 'Off',
+  random: 'Random',
+  pop: 'Pop',
+  ding: 'Ding',
+  chime: 'Chime',
+  tada: 'Tada',
+};
+
+function SoundSetting() {
+  const t = useTheme();
+  const [pref, setPref] = useState<SoundPref>('pop');
+
+  useEffect(() => {
+    getSoundPref().then(setPref);
+  }, []);
+
+  function choose(next: SoundPref) {
+    setPref(next);
+    void setSoundPref(next);
+    if (next !== 'off' && next !== 'random') previewSound(next);
+  }
+
+  const options: SoundPref[] = ['off', 'random', ...COMPLETION_SOUNDS];
+
+  return (
+    <View>
+      <View style={[styles.sectionHead, { marginTop: 28 }]}>
+        <Text style={[styles.sectionTitle, { color: t.fg }]}>Completion sound</Text>
+      </View>
+      <View style={styles.chipRow}>
+        {options.map((o) => (
+          <Pressable
+            key={o}
+            onPress={() => choose(o)}
+            style={[
+              styles.chip,
+              { borderColor: pref === o ? t.brand : t.border },
+              pref === o && { backgroundColor: t.bgPressed },
+            ]}
+          >
+            <Text style={{ color: pref === o ? t.brand : t.fgSecondary, fontSize: 13 }}>
+              {SOUND_LABELS[o]}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+    </View>
+  );
+}
 
 export default function BrowseScreen() {
   const t = useTheme();
@@ -95,6 +154,8 @@ export default function BrowseScreen() {
         </Text>
       )}
 
+      <SoundSetting />
+
       <Pressable
         onPress={() =>
           Alert.alert('Log out', 'Are you sure you want to log out?', [
@@ -128,6 +189,13 @@ const styles = StyleSheet.create({
   },
   rowText: { fontSize: 15, flex: 1 },
   count: { fontSize: 13 },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingVertical: 8 },
+  chip: {
+    borderWidth: 1,
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
   logout: {
     flexDirection: 'row',
     alignItems: 'center',

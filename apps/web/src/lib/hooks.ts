@@ -39,6 +39,7 @@ import {
   type UpdateTaskInput,
 } from '@todoer/shared';
 import { createClient } from '@/lib/supabase/client';
+import { playCompletionSound } from '@/lib/sound';
 
 export function useSupabase() {
   return useMemo(() => createClient(), []);
@@ -191,6 +192,7 @@ export function useCompleteTask() {
   return useMutation({
     mutationFn: (task: Task) => completeTask(db, task),
     onMutate: async (task) => {
+      playCompletionSound();
       await qc.cancelQueries({ queryKey: ['tasks'] });
       const prev = qc.getQueryData<TaskWithLabels[]>(['tasks']);
       if (prev && !task.recurrence) {

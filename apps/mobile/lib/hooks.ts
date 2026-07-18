@@ -19,6 +19,7 @@ import {
   type UpdateTaskInput,
 } from '@todoer/shared';
 import { supabase } from './supabase';
+import { playCompletionSound } from './sound';
 
 export function useProjects() {
   return useQuery({ queryKey: ['projects'], queryFn: () => fetchProjects(supabase) });
@@ -68,6 +69,7 @@ export function useCompleteTask() {
   return useMutation({
     mutationFn: (task: Task) => completeTask(supabase, task),
     onMutate: async (task) => {
+      void playCompletionSound();
       await qc.cancelQueries({ queryKey: ['tasks'] });
       const prev = qc.getQueryData<TaskWithLabels[]>(['tasks']);
       if (prev && !task.recurrence) {
