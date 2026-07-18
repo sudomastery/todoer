@@ -6,6 +6,7 @@ const BASE = process.env.BASE_URL ?? 'http://localhost:3000';
 const browser = await chromium.launch();
 
 const email = `sync.${Date.now()}@test.local`;
+const username = `sync_${Date.now()}`;
 const ctxA = await browser.newContext();
 const pageA = await ctxA.newPage();
 pageA.setDefaultTimeout(20000);
@@ -13,17 +14,18 @@ pageA.setDefaultTimeout(20000);
 // sign up in window A
 await pageA.goto(`${BASE}/signup`);
 await pageA.getByPlaceholder('Your name').fill('Sync Tester');
+await pageA.getByPlaceholder('Username').fill(username);
 await pageA.getByPlaceholder('Email').fill(email);
 await pageA.getByPlaceholder('Password').fill('password-123');
 await pageA.getByRole('button', { name: 'Sign up' }).click();
 await pageA.waitForURL('**/app/today');
 
-// log in with the same account in an isolated second window
+// log in with the same account (by username) in an isolated second window
 const ctxB = await browser.newContext();
 const pageB = await ctxB.newPage();
 pageB.setDefaultTimeout(20000);
 await pageB.goto(`${BASE}/login`);
-await pageB.getByPlaceholder('Email').fill(email);
+await pageB.getByPlaceholder('Email or username').fill(username);
 await pageB.getByPlaceholder('Password').fill('password-123');
 await pageB.getByRole('button', { name: 'Log in' }).click();
 await pageB.waitForURL('**/app/today');

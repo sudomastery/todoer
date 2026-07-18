@@ -48,11 +48,11 @@ const stamp = Date.now();
 const alice = { email: `alice.${stamp}@test.local`, password: 'password-123' };
 const bob = { email: `bob.${stamp}@test.local`, password: 'password-123' };
 
-async function signup(db, creds, name) {
+async function signup(db, creds, name, username) {
   const { data, error } = await db.auth.signUp({
     email: creds.email,
     password: creds.password,
-    options: { data: { full_name: name } },
+    options: { data: { full_name: name, username } },
   });
   if (error) throw new Error(`signup ${creds.email}: ${error.message}`);
   if (!data.session) throw new Error('no session; disable email confirmation locally');
@@ -63,8 +63,8 @@ const dbA = newDb();
 const dbB = newDb();
 
 console.log('== auth + signup trigger ==');
-const userA = await signup(dbA, alice, 'Alice');
-await signup(dbB, bob, 'Bob');
+const userA = await signup(dbA, alice, 'Alice', `alice_${stamp}`);
+await signup(dbB, bob, 'Bob', `bob_${stamp}`);
 check('both users signed up with sessions', true);
 
 const projectsA = await fetchProjects(dbA);
@@ -74,6 +74,31 @@ const inboxA = projectsA.find((p) => p.is_inbox);
 
 const { data: profileA } = await dbA.from('profiles').select('*').single();
 check('profile created with name', profileA?.full_name === 'Alice', JSON.stringify(profileA));
+check('profile stored username', profileA?.username === `alice_${stamp}`, JSON.stringify(profileA));
+
+console.log('== username login helpers ==');
+const anonDb = newDb();
+const { data: availTaken } = await anonDb.rpc('username_available', { p_username: `ALICE_${stamp}` });
+check('username_available: taken (case-insensitive)', availTaken === false);
+const { data: availFree } = await anonDb.rpc('username_available', { p_username: `nobody_${stamp}` });
+check('username_available: free', availFree === true);
+const { data: resolvedEmail } = await anonDb.rpc('email_for_username', { p_username: `Alice_${stamp}` });
+check('email_for_username resolves as anon', resolvedEmail === alice.email, JSON.stringify(resolvedEmail));
+const { data: resolvedNone } = await anonDb.rpc('email_for_username', { p_username: `nobody_${stamp}` });
+check('email_for_username: unknown -> null', resolvedNone === null);
+const dupDb = newDb();
+const { error: dupErr } = await dupDb.auth.signUp({
+  email: `dup.${stamp}@test.local`,
+  password: 'password-123',
+  options: { data: { full_name: 'Dup', username: `alice_${stamp}` } },
+});
+check('duplicate username rejected at signup', dupErr !== null, dupErr?.message);
+const { error: badErr } = await dupDb.auth.signUp({
+  email: `bad.${stamp}@test.local`,
+  password: 'password-123',
+  options: { data: { full_name: 'Bad', username: 'no spaces!' } },
+});
+check('invalid username format rejected', badErr !== null, badErr?.message);
 
 console.log('== projects and sections ==');
 const work = await createProject(dbA, { name: 'Work', color: 'blue', is_favorite: true });

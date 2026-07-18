@@ -242,3 +242,24 @@ export async function setTaskPriority(db: Client, id: string, priority: Priority
   const { error } = await db.from('tasks').update({ priority }).eq('id', id);
   throwIf(error);
 }
+
+// ============================================================
+// Auth helpers (username login)
+// ============================================================
+
+export const USERNAME_RE = /^[A-Za-z0-9_]{3,30}$/;
+
+export async function isUsernameAvailable(db: Client, username: string): Promise<boolean> {
+  const { data, error } = await db.rpc('username_available', { p_username: username });
+  throwIf(error);
+  return data === true;
+}
+
+/** Accepts an email or a username; returns the email to sign in with, or null if unknown. */
+export async function resolveLoginEmail(db: Client, identifier: string): Promise<string | null> {
+  const id = identifier.trim();
+  if (id.includes('@')) return id;
+  const { data, error } = await db.rpc('email_for_username', { p_username: id });
+  throwIf(error);
+  return (data as string | null) ?? null;
+}
