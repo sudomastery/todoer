@@ -28,6 +28,7 @@ import {
   updateSection,
   deleteProject,
   updateTask,
+  type Priority,
   type Project,
   type Task,
   type TaskWithLabels,
@@ -278,11 +279,19 @@ export function useQuickAdd() {
       defaultProjectId,
       defaultDueDate,
       parentId,
+      overrides,
     }: {
       input: string;
       defaultProjectId: string;
       defaultDueDate?: string | null;
       parentId?: string | null;
+      /** Explicit picker choices, which win over tokens parsed from the text. */
+      overrides?: {
+        due_date?: string | null;
+        due_time?: string | null;
+        recurrence?: string | null;
+        priority?: Priority;
+      };
     }) => {
       const parsed = parseQuickAdd(input);
       if (!parsed.content) throw new Error('Task name is required');
@@ -298,14 +307,23 @@ export function useQuickAdd() {
 
       const labels = await ensureLabels(supabase, parsed.labelNames);
 
+      const dueDate =
+        overrides?.due_date !== undefined
+          ? overrides.due_date
+          : (parsed.due_date ?? defaultDueDate ?? null);
+      const dueTime =
+        overrides?.due_time !== undefined ? overrides.due_time : parsed.due_time;
+
       return createTask(supabase, {
         content: parsed.content,
         project_id: projectId,
         parent_id: parentId ?? null,
-        priority: parsed.priority,
-        due_date: parsed.due_date ?? defaultDueDate ?? null,
-        due_time: parsed.due_time,
-        recurrence: parsed.recurrence,
+        priority: overrides?.priority ?? parsed.priority,
+        due_date: dueDate,
+        // A time with no day would never fire.
+        due_time: dueDate ? dueTime : null,
+        recurrence:
+          overrides?.recurrence !== undefined ? overrides.recurrence : parsed.recurrence,
         label_ids: labels.map((l) => l.id),
       });
     },

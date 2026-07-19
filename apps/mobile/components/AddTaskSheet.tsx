@@ -1,12 +1,16 @@
 import { useMemo, useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import {
   describeRecurrence,
-  formatDueDate,
+  formatDue,
   parseQuickAdd,
   PRIORITY_COLORS,
+  recurrenceOptions,
+  type Priority,
 } from '@todoer/shared';
+import { DateGrid } from './DateGrid';
+import { TimeRow } from './TimeRow';
 import { useProjects, useQuickAdd } from '../lib/hooks';
 import { useKeyboardOffset } from '../lib/keyboard';
 import { useTheme } from '../lib/theme';
@@ -30,9 +34,29 @@ export function AddTaskSheet({
   const [text, setText] = useState('');
   const { offset, onLayout } = useKeyboardOffset();
 
+  // undefined means "whatever the typed text says"; an explicit choice wins.
+  const [dueOverride, setDueOverride] = useState<string | null | undefined>(undefined);
+  const [timeOverride, setTimeOverride] = useState<string | null | undefined>(undefined);
+  const [repeatOverride, setRepeatOverride] = useState<string | null | undefined>(undefined);
+  const [priorityOverride, setPriorityOverride] = useState<Priority | undefined>(undefined);
+  const [showDetails, setShowDetails] = useState(false);
+
   const inbox = (projects ?? []).find((p) => p.is_inbox);
   const parsed = useMemo(() => parseQuickAdd(text), [text]);
-  const dueLabel = parsed.due_date ?? defaultDueDate ?? null;
+
+  const effDue = dueOverride !== undefined ? dueOverride : (parsed.due_date ?? defaultDueDate ?? null);
+  const effTime = timeOverride !== undefined ? timeOverride : parsed.due_time;
+  const effRepeat = repeatOverride !== undefined ? repeatOverride : parsed.recurrence;
+  const effPriority: Priority = priorityOverride ?? parsed.priority;
+
+  function reset() {
+    setText('');
+    setDueOverride(undefined);
+    setTimeOverride(undefined);
+    setRepeatOverride(undefined);
+    setPriorityOverride(undefined);
+    setShowDetails(false);
+  }
 
   async function submit() {
     const projectId = defaultProjectId ?? inbox?.id;
@@ -42,10 +66,21 @@ export function AddTaskSheet({
       defaultProjectId: projectId,
       defaultDueDate,
       parentId,
+      overrides: {
+        due_date: effDue,
+        due_time: effTime,
+        recurrence: effRepeat,
+        priority: effPriority,
+      },
     });
-    setText('');
+    reset();
     onClose();
   }
+
+  const chipStyle = (active: boolean) => [
+    styles.chip,
+    { borderColor: active ? t.brand : t.border },
+  ];
 
   return (
     <Modal
@@ -70,28 +105,28 @@ export function AddTaskSheet({
           />
 
           <View style={styles.chips}>
-            {dueLabel && (
-              <View style={[styles.chip, { borderColor: t.border }]}>
-                <Ionicons name="calendar-outline" size={13} color="#299438" />
-                <Text style={[styles.chipText, { color: t.fgSecondary }]}>
-                  {formatDueDate(dueLabel)}
+            <Pressable onPress={() => setShowDetails((s) => !s)} style={chipStyle(!!effDue)}>
+              <Ionicons
+                name="calendar-outline"
+                size={13}
+                color={effDue ? t.brand : t.fgSecondary}
+              />
+              <Text style={[styles.chipText, { color: effDue ? t.brand : t.fgSecondary }]}>
+                {effDue ? formatDue(effDue, effTime) : 'Due date'}
+              </Text>
+            </Pressable>
+            {effRepeat && (
+              <View style={chipStyle(true)}>
+                <Ionicons name="repeat" size={13} color={t.brand} />
+                <Text style={[styles.chipText, { color: t.brand }]}>
+                  {describeRecurrence(effRepeat)}
                 </Text>
               </View>
             )}
-            {parsed.recurrence && (
-              <View style={[styles.chip, { borderColor: t.border }]}>
-                <Ionicons name="repeat" size={13} color={t.fgSecondary} />
-                <Text style={[styles.chipText, { color: t.fgSecondary }]}>
-                  {describeRecurrence(parsed.recurrence)}
-                </Text>
-              </View>
-            )}
-            {parsed.priority < 4 && (
-              <View style={[styles.chip, { borderColor: t.border }]}>
-                <Ionicons name="flag" size={13} color={PRIORITY_COLORS[parsed.priority]} />
-                <Text style={[styles.chipText, { color: t.fgSecondary }]}>
-                  P{parsed.priority}
-                </Text>
+            {effPriority < 4 && (
+              <View style={chipStyle(true)}>
+                <Ionicons name="flag" size={13} color={PRIORITY_COLORS[effPriority]} />
+                <Text style={[styles.chipText, { color: t.fgSecondary }]}>P{effPriority}</Text>
               </View>
             )}
             {parsed.projectName && (
@@ -109,6 +144,63 @@ export function AddTaskSheet({
               </View>
             ))}
           </View>
+
+          {showDetails && (
+            <ScrollView style={{ maxHeight: 340 }} keyboardShouldPersistTaps="handled">
+              <DateGrid value={effDue} onChange={setDueOverride} />
+              {effDue && (
+                <>
+                  <Text style={[styles.groupLabel, { color: t.fgFaint }]}>Time</Text>
+                  <TimeRow value={effTime} onChange={setTimeOverride} />
+                </>
+              )}
+
+              <Text style={[styles.groupLabel, { color: t.fgFaint }]}>Priority</Text>
+              <View style={styles.chips}>
+                {([1, 2, 3, 4] as Priority[]).map((p) => (
+                  <Pressable
+                    key={p}
+                    onPress={() => setPriorityOverride(p)}
+                    style={chipStyle(effPriority === p)}
+                  >
+                    <Ionicons
+                      name="flag"
+                      size={13}
+                      color={p < 4 ? PRIORITY_COLORS[p] : t.fgFaint}
+                    />
+                    <Text
+                      style={[
+                        styles.chipText,
+                        { color: effPriority === p ? t.brand : t.fgSecondary },
+                      ]}
+                    >
+                      P{p}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+
+              <Text style={[styles.groupLabel, { color: t.fgFaint }]}>Repeat</Text>
+              <View style={styles.chips}>
+                {recurrenceOptions(effDue).map((o) => (
+                  <Pressable
+                    key={o.label}
+                    onPress={() => setRepeatOverride(effRepeat === o.rule ? null : o.rule)}
+                    style={chipStyle(effRepeat === o.rule)}
+                  >
+                    <Text
+                      style={[
+                        styles.chipText,
+                        { color: effRepeat === o.rule ? t.brand : t.fgSecondary },
+                      ]}
+                    >
+                      {o.label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </ScrollView>
+          )}
 
           <View style={styles.footer}>
             <Text style={{ color: t.fgFaint, fontSize: 12 }}>
@@ -152,6 +244,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   chipText: { fontSize: 12, fontWeight: '500' },
+  groupLabel: { fontSize: 11, fontWeight: '700', marginTop: 14, marginBottom: 6 },
   footer: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -5,6 +5,7 @@ import {
   parseRecurrence,
   nextOccurrence,
   describeRecurrence,
+  recurrenceOptions,
 } from '../packages/shared/src/recurrence.ts';
 import {
   DEFAULT_NOTIFICATION_PREFS,
@@ -16,7 +17,10 @@ import {
   todayISO,
   formatDueDate,
   formatDue,
+  monthGrid,
+  parseTimeInput,
   upcomingDays,
+  WEEKDAY_LABELS,
 } from '../packages/shared/src/dates.ts';
 
 let passed = 0;
@@ -99,6 +103,49 @@ console.log('== dates ==');
 check('formatDueDate today', formatDueDate(today) === 'Today');
 check('formatDue with time', formatDue(today, '17:30:00') === 'Today 5:30 PM', formatDue(today, '17:30:00'));
 check('upcomingDays starts today', upcomingDays(14)[0] === today && upcomingDays(14).length === 14);
+
+console.log('== month grid ==');
+{
+  // July 2026 starts on a Wednesday, so a Monday-first grid begins Jun 29.
+  const weeks = monthGrid(new Date('2026-07-01T12:00:00'));
+  const flat = weeks.flat();
+  check('grid rows are whole weeks', weeks.every((w) => w.length === 7), weeks.map((w) => w.length));
+  check('grid starts on a Monday', flat[0].getDay() === 1, flat[0].toDateString());
+  check('grid ends on a Sunday', flat[flat.length - 1].getDay() === 0);
+  check('grid covers the leading days', flat[0].getDate() === 29 && flat[0].getMonth() === 5, flat[0].toDateString());
+  check('grid contains every day of the month', flat.filter((d) => d.getMonth() === 6).length === 31);
+  check('weekday labels match column count', WEEKDAY_LABELS.length === 7 && WEEKDAY_LABELS[0] === 'Mon');
+
+  // A month that both starts and ends on the grid boundary must not gain a
+  // blank trailing week.
+  const feb = monthGrid(new Date('2027-02-01T12:00:00')).flat();
+  check('february 2027 grid has no empty trailing week', feb.length === 28, feb.length);
+}
+
+console.log('== time input ==');
+check('bare hour', parseTimeInput('9') === '09:00:00', parseTimeInput('9'));
+check('hour and minutes', parseTimeInput('9:30') === '09:30:00');
+check('compact form', parseTimeInput('0930') === '09:30:00', parseTimeInput('0930'));
+check('pm shifts', parseTimeInput('9pm') === '21:00:00', parseTimeInput('9pm'));
+check('midnight am', parseTimeInput('12am') === '00:00:00', parseTimeInput('12am'));
+check('noon pm stays 12', parseTimeInput('12pm') === '12:00:00', parseTimeInput('12pm'));
+check('spaced meridiem', parseTimeInput('9:30 PM') === '21:30:00', parseTimeInput('9:30 PM'));
+check('24h passes through', parseTimeInput('23:45') === '23:45:00');
+check('empty is null', parseTimeInput('  ') === null);
+check('garbage is null', parseTimeInput('later') === null);
+check('bad minutes rejected', parseTimeInput('9:75') === null, parseTimeInput('9:75'));
+check('hour over 23 rejected', parseTimeInput('25:00') === null);
+check('13pm rejected', parseTimeInput('13pm') === null, parseTimeInput('13pm'));
+
+console.log('== recurrence options ==');
+{
+  // 2026-07-15 is a Wednesday (getDay 3).
+  const opts = recurrenceOptions('2026-07-15');
+  check('weekly follows the due weekday', opts.find((o) => o.label === 'Weekly').rule === 'weekly:3', opts.find((o) => o.label === 'Weekly').rule);
+  check('monthly follows the due day', opts.find((o) => o.label === 'Monthly').rule === 'monthly:15');
+  check('options round-trip through describe', opts.every((o) => typeof describeRecurrence(o.rule) === 'string'));
+  check('undated still offers options', recurrenceOptions(null).length === 5);
+}
 
 console.log('== notifications ==');
 {

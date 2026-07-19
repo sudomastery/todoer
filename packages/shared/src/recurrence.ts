@@ -32,6 +32,21 @@ export function describeRecurrence(rule: string): string {
   return rule;
 }
 
+/**
+ * The rules offered by the repeat pickers. Weekly and monthly depend on the
+ * task's due date, so they follow whatever day is currently set.
+ */
+export function recurrenceOptions(dueDate: string | null): { label: string; rule: string }[] {
+  const base = dueDate ? parseISO(dueDate) : new Date();
+  return [
+    { label: 'Daily', rule: 'daily' },
+    { label: 'Weekdays', rule: 'weekdays' },
+    { label: 'Weekly', rule: `weekly:${getDay(base)}` },
+    { label: 'Monthly', rule: `monthly:${base.getDate()}` },
+    { label: 'Yearly', rule: 'yearly' },
+  ];
+}
+
 function ordinal(n: number): string {
   const s = ['th', 'st', 'nd', 'rd'];
   const v = n % 100;

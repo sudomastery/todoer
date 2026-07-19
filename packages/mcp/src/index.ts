@@ -38,6 +38,7 @@ import {
   resolveLoginEmail,
   setTaskLabels,
   todayISO,
+  toISODate,
   uncompleteTask,
   updateProject,
   updateTask,
@@ -497,23 +498,28 @@ server.registerTool(
   handler(async () => {
     const since = new Date();
     since.setDate(since.getDate() - 90);
-    const sinceIso = since.toISOString().slice(0, 10);
+    const sinceIso = toISODate(since);
     const [completed, active] = await Promise.all([
       fetchCompletedSince(db, sinceIso),
       fetchActiveTasks(db),
     ]);
     const today = todayISO();
-    const dayOf = (t: TaskWithLabels) => t.completed_at?.slice(0, 10) ?? null;
+    // completed_at is a UTC instant while todayISO is the local calendar day,
+    // so it has to be converted rather than sliced: taking the first ten
+    // characters reports zero completions today whenever the local date has
+    // rolled over ahead of UTC.
+    const dayOf = (t: TaskWithLabels) =>
+      t.completed_at ? toISODate(new Date(t.completed_at)) : null;
     const completedToday = completed.filter((t) => dayOf(t) === today).length;
     const weekStart = new Date();
     weekStart.setDate(weekStart.getDate() - 6);
-    const weekIso = weekStart.toISOString().slice(0, 10);
+    const weekIso = toISODate(weekStart);
     const completedWeek = completed.filter((t) => (dayOf(t) ?? '') >= weekIso).length;
     const days = new Set(completed.map(dayOf).filter(Boolean));
     let streak = 0;
     const cursor = new Date();
     if (!days.has(today)) cursor.setDate(cursor.getDate() - 1);
-    while (days.has(cursor.toISOString().slice(0, 10))) {
+    while (days.has(toISODate(cursor))) {
       streak++;
       cursor.setDate(cursor.getDate() - 1);
     }

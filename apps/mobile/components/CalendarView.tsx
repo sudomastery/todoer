@@ -1,19 +1,16 @@
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { addMonths, format, startOfMonth } from 'date-fns';
 import {
-  addDays,
-  addMonths,
-  endOfMonth,
-  endOfWeek,
-  format,
-  startOfMonth,
-  startOfWeek,
-} from 'date-fns';
-import { todayISO, type Label, type Project, type TaskWithLabels } from '@todoer/shared';
+  monthGrid,
+  todayISO,
+  WEEKDAY_LABELS as WEEKDAYS,
+  type Label,
+  type Project,
+  type TaskWithLabels,
+} from '@todoer/shared';
 import { TaskRow } from './TaskRow';
 import { useTheme } from '../lib/theme';
-
-const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 /** Month grid with a task list for the selected day. */
 export function CalendarView({
@@ -39,15 +36,7 @@ export function CalendarView({
     return m;
   }, [tasks]);
 
-  const weeks = useMemo(() => {
-    const start = startOfWeek(startOfMonth(month), { weekStartsOn: 1 });
-    const end = endOfWeek(endOfMonth(month), { weekStartsOn: 1 });
-    const days: Date[] = [];
-    for (let d = start; d <= end; d = addDays(d, 1)) days.push(d);
-    const rows: Date[][] = [];
-    for (let i = 0; i < days.length; i += 7) rows.push(days.slice(i, i + 7));
-    return rows;
-  }, [month]);
+  const weeks = useMemo(() => monthGrid(month), [month]);
 
   const today = todayISO();
   const monthPrefix = format(month, 'yyyy-MM');
