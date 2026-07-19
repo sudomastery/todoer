@@ -41,7 +41,8 @@
           "imageWidth": 160,
           "backgroundColor": "#dc4c3e"
         }
-      ]
+      ],
+      "expo-web-browser"
     ]
   }
 }

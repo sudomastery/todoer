@@ -27,16 +27,14 @@ export async function middleware(request: NextRequest) {
   const isAuthPage = path === '/login' || path === '/signup';
 
   // Client-side navigations inside the app fetch route payloads with an RSC
-  // header. Verifying the session with Supabase costs a round trip to the auth
-  // server, which is what made switching views feel slow, so those requests are
-  // gated on the session cookie instead. Full page loads still verify properly,
-  // and the database enforces access on every query regardless.
+  // header. Calling getUser() on those costs a round trip to the auth server,
+  // which is what made switching views feel slow. getClaims() verifies the JWT
+  // signature locally against the project's cached ES256 public key instead, so
+  // the check is both fast and real. Full page loads still verify with getUser.
   const isRscRequest = request.headers.get('RSC') === '1';
   if (isRscRequest) {
-    const hasSession = request.cookies
-      .getAll()
-      .some((c) => c.name.startsWith('sb-') && c.name.includes('auth-token'));
-    if (!hasSession && path.startsWith('/app')) {
+    const { data: claims } = await supabase.auth.getClaims();
+    if (!claims && path.startsWith('/app')) {
       const url = request.nextUrl.clone();
       url.pathname = '/login';
       return NextResponse.redirect(url);
