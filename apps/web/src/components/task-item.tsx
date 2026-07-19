@@ -173,7 +173,7 @@ export function TaskItem({
                 <span
                   className={clsx(
                     'flex items-center gap-1',
-                    overdue ? 'text-p1' : dueToday ? 'text-green-600' : 'text-fg-secondary',
+                    overdue ? 'text-brand' : dueToday ? 'text-green-600' : 'text-fg-secondary',
                   )}
                 >
                   <CalendarDays className="h-3.5 w-3.5" />

@@ -55,6 +55,7 @@ export const ACCENT_THEMES: AccentTheme[] = [
   { id: 'forest', name: 'Forest green', primary: '#059669', hover: '#047857' },
   { id: 'violet', name: 'Violet', primary: '#7c3aed', hover: '#6d28d9' },
   { id: 'sunset', name: 'Sunset orange', primary: '#ea580c', hover: '#c2410c' },
+  { id: 'blossom', name: 'Blossom pink', primary: '#db2777', hover: '#be185d' },
 ];
 
 export const THEME_PREF_KEY = 'todoer.theme';

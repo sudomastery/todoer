@@ -6,9 +6,11 @@ import { useActiveTasks, useLabels, useProjects, useRealtimeSync } from '../../l
 import { TaskListView } from '../../components/TaskListView';
 import { AddTaskSheet } from '../../components/AddTaskSheet';
 import { Fab } from '../../components/Fab';
+import { useTheme } from '../../lib/theme';
 
 export default function TodayScreen() {
   useRealtimeSync();
+  const t = useTheme();
   const { data: tasks } = useActiveTasks();
   const { data: projects } = useProjects();
   const { data: labels } = useLabels();
@@ -22,7 +24,7 @@ export default function TodayScreen() {
     <View style={{ flex: 1 }}>
       <TaskListView
         sections={[
-          { title: overdue.length > 0 ? 'Overdue' : null, data: overdue, accent: '#d1453b' },
+          { title: overdue.length > 0 ? 'Overdue' : null, data: overdue, accent: t.brand },
           {
             title: overdue.length > 0 ? `${format(new Date(), 'MMM d')} - Today` : null,
             data: today,

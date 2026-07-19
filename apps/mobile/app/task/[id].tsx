@@ -130,12 +130,12 @@ export default function TaskDetailScreen() {
               <Ionicons
                 name={task.recurrence ? 'repeat' : 'calendar-outline'}
                 size={15}
-                color={overdue ? '#d1453b' : dueToday ? '#299438' : t.fgSecondary}
+                color={overdue ? t.brand : dueToday ? '#299438' : t.fgSecondary}
               />
               <Text
                 style={[
                   styles.metaText,
-                  { color: overdue ? '#d1453b' : dueToday ? '#299438' : t.fgSecondary },
+                  { color: overdue ? t.brand : dueToday ? '#299438' : t.fgSecondary },
                 ]}
               >
                 {formatDue(task.due_date, task.due_time)}

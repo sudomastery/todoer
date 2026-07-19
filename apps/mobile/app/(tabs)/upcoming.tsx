@@ -5,8 +5,10 @@ import { useActiveTasks, useLabels, useProjects } from '../../lib/hooks';
 import { TaskListView, type TaskSection } from '../../components/TaskListView';
 import { AddTaskSheet } from '../../components/AddTaskSheet';
 import { Fab } from '../../components/Fab';
+import { useTheme } from '../../lib/theme';
 
 export default function UpcomingScreen() {
+  const t = useTheme();
   const { data: tasks } = useActiveTasks();
   const { data: projects } = useProjects();
   const { data: labels } = useLabels();
@@ -20,7 +22,7 @@ export default function UpcomingScreen() {
     {
       title: 'Overdue',
       data: all.filter((t) => t.due_date && isOverdue(t.due_date)),
-      accent: '#d1453b',
+      accent: t.brand,
     },
     ...days.map((day) => ({
       title: formatDayHeading(day),

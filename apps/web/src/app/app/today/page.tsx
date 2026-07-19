@@ -24,7 +24,7 @@ export default function TodayPage() {
     <>
       {overdue.length > 0 && (
         <section className="mt-6">
-          <h2 className="border-b border-border-default pb-1.5 text-sm font-semibold text-p1">
+          <h2 className="border-b border-border-default pb-1.5 text-sm font-semibold text-brand">
             Overdue
           </h2>
           <TaskList tasks={overdue} allTasks={all} showProject />

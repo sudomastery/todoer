@@ -194,6 +194,14 @@ try {
     document.documentElement.style.getPropertyValue('--color-brand'),
   );
   check('accent css variable applied', brandVar.trim() === '#2563eb', brandVar);
+
+  await page.getByRole('button', { name: 'Blossom pink' }).click();
+  const pinkPref = await page.evaluate(() => localStorage.getItem('todoer.theme'));
+  check('pink accent selectable', pinkPref === 'blossom', pinkPref);
+  const pinkVar = await page.evaluate(() =>
+    document.documentElement.style.getPropertyValue('--color-brand'),
+  );
+  check('pink accent applied', pinkVar.trim() === '#db2777', pinkVar);
   await page.keyboard.press('Escape');
 
   console.log('== mcp instructions ==');
