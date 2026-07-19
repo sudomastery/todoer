@@ -88,12 +88,15 @@ export function TaskItem({
   showProject = false,
   hideDue = false,
   completedView = false,
+  card = true,
 }: {
   task: TaskWithLabels;
   subtasks?: TaskWithLabels[];
   showProject?: boolean;
   hideDue?: boolean;
   completedView?: boolean;
+  /** Rounded card style; false renders a flat divider row (used for subtasks). */
+  card?: boolean;
 }) {
   const completeTask = useCompleteTask();
   const uncompleteTask = useUncompleteTask();
@@ -113,20 +116,26 @@ export function TaskItem({
 
   if (editing) {
     return (
-      <div className="border-b border-border-default py-2">
+      <div className={card ? 'mb-2' : 'border-b border-border-default py-2 last:border-b-0'}>
         <TaskEditor task={task} onDone={() => setEditing(false)} />
       </div>
     );
   }
 
   return (
-    <div className="border-b border-border-default">
+    <div
+      className={clsx(
+        card
+          ? 'mb-2 rounded-xl border border-border-default bg-bg-card px-3 shadow-sm transition-colors hover:border-border-strong'
+          : 'border-b border-border-default last:border-b-0',
+      )}
+    >
       <div className="group flex items-start gap-2.5 py-2.5">
         {subtasks.length > 0 ? (
           <button
             type="button"
             onClick={() => setExpanded((v) => !v)}
-            className="-ml-6 mt-1 hidden w-4 text-fg-faint hover:text-fg md:block"
+            className={clsx('mt-1 hidden w-4 text-fg-faint hover:text-fg md:block', card ? '-ml-1' : '-ml-6')}
             aria-label={expanded ? 'Collapse subtasks' : 'Expand subtasks'}
           >
             {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
@@ -238,7 +247,7 @@ export function TaskItem({
       {expanded && subtasks.length > 0 && (
         <div className="ml-7 border-t border-border-default">
           {subtasks.map((st) => (
-            <TaskItem key={st.id} task={st} hideDue={hideDue} />
+            <TaskItem key={st.id} task={st} hideDue={hideDue} card={false} />
           ))}
         </div>
       )}

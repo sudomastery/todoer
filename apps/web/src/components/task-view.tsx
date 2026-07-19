@@ -80,17 +80,16 @@ export function TaskView({
               <h2 className="text-sm font-semibold">{g.title}</h2>
               <span className="text-xs text-fg-faint">{g.tasks.length}</span>
             </div>
-            <div className="space-y-2">
+            <div>
               {sortTasksBy(g.tasks, prefs.sortBy)
                 .filter((t) => !t.parent_id || !g.tasks.some((p) => p.id === t.parent_id))
                 .map((t) => (
-                  <div key={t.id} className="rounded-md border border-border-default bg-bg px-2">
-                    <TaskItem
-                      task={t}
-                      subtasks={sortTasksBy(all.filter((s) => s.parent_id === t.id), 'manual')}
-                      showProject={showProject}
-                    />
-                  </div>
+                  <TaskItem
+                    key={t.id}
+                    task={t}
+                    subtasks={sortTasksBy(all.filter((s) => s.parent_id === t.id), 'manual')}
+                    showProject={showProject}
+                  />
                 ))}
             </div>
           </div>
