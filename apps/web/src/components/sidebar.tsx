@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import clsx from 'clsx';
 import {
+  Bot,
   Calendar,
   CalendarDays,
   BarChart2,
@@ -48,6 +49,7 @@ import {
 } from '@/components/ui';
 import { createClient } from '@/lib/supabase/client';
 import { SoundSettingsDialog } from '@/components/sound-settings';
+import { McpSettingsDialog } from '@/components/mcp-settings';
 
 function NavLink({
   href,
@@ -179,6 +181,7 @@ export function Sidebar({
   const [addingProject, setAddingProject] = useState(false);
   const [projectsExpanded, setProjectsExpanded] = useState(true);
   const [soundSettingsOpen, setSoundSettingsOpen] = useState(false);
+  const [mcpOpen, setMcpOpen] = useState(false);
 
   if (!open) return null;
 
@@ -265,6 +268,9 @@ export function Sidebar({
             <DropdownItem onSelect={() => setSoundSettingsOpen(true)}>
               <Volume2 className="h-4 w-4" /> Completion sound
             </DropdownItem>
+            <DropdownItem onSelect={() => setMcpOpen(true)}>
+              <Bot className="h-4 w-4" /> AI assistant
+            </DropdownItem>
             <DropdownItem onSelect={exportData}>
               <Download className="h-4 w-4" /> Export data
             </DropdownItem>
@@ -282,6 +288,7 @@ export function Sidebar({
         </IconButton>
       </div>
       <SoundSettingsDialog open={soundSettingsOpen} onOpenChange={setSoundSettingsOpen} />
+      <McpSettingsDialog open={mcpOpen} onOpenChange={setMcpOpen} login={userEmail} />
 
       <div className="px-3">
         <button
