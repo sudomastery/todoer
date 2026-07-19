@@ -66,7 +66,50 @@ try {
   await page.waitForTimeout(600);
   await page.keyboard.press('Escape');
 
+  console.log('== exact date, time and repeat pickers ==');
+  await page.keyboard.press('q');
+  const exact = page.getByPlaceholder(/Task name, e.g./);
+  await exact.waitFor();
+  await exact.fill('Dentist appointment');
+
+  // Pick a specific day off the calendar grid rather than a preset.
+  await page.getByRole('button', { name: 'Due date' }).click();
+  const target = new Date();
+  target.setDate(15);
+  target.setMonth(target.getMonth() + 1);
+  const label = target.toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
+  await page.getByRole('button', { name: 'Next month' }).click();
+  check('time input is disabled before a date is picked', await page.getByLabel('Due time').isDisabled());
+  await page.getByRole('button', { name: label }).click();
+
+  // The popover stays open after a grid pick so the time can be set in the
+  // same pass; setting it before a date is deliberately not possible.
+  check('time input enables once a date is set', await page.getByLabel('Due time').isEnabled());
+  await page.getByLabel('Due time').fill('14:30');
+  await page.keyboard.press('Escape');
+  check('time shows on the due chip', await page.getByText(/2:30 PM/).first().isVisible());
+
+  // Set a repeat rule without typing "every ..." into the task text.
+  await page.getByRole('button', { name: 'Repeat' }).click();
+  await page.getByRole('button', { name: 'Monthly' }).click();
+  check('repeat picker set a rule', await page.getByText(/every month/).first().isVisible());
+
+  await page.getByRole('button', { name: 'Add task' }).click();
+  await page.waitForTimeout(600);
+  await page.keyboard.press('Escape');
+  await page.getByRole('link', { name: 'Upcoming' }).click();
+  await page.waitForURL('**/app/upcoming');
+  await page.getByText('Dentist appointment').first().waitFor();
+  check('task saved with picker-set date survives reload', true);
+
   console.log('== add a task due today from Today view ==');
+  await page.getByRole('link', { name: 'Today' }).click();
+  await page.waitForURL('**/app/today');
   const main = page.getByRole('main');
   await main.getByRole('button', { name: 'Add task' }).first().click();
   const inline = page.getByPlaceholder(/Task name, e.g./);

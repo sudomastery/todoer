@@ -215,7 +215,16 @@ export function TaskItem({
             </IconButton>
             <DuePicker
               value={task.due_date}
-              onChange={(d) => updateTask.mutate({ id: task.id, patch: { due_date: d } })}
+              onChange={(d) =>
+                updateTask.mutate({
+                  id: task.id,
+                  patch: { due_date: d, ...(d ? {} : { due_time: null }) },
+                })
+              }
+              time={task.due_time}
+              onTimeChange={(tm) => updateTask.mutate({ id: task.id, patch: { due_time: tm } })}
+              // The row picker writes straight through, so the popover stays
+              // open after a day is picked to allow a time in the same pass.
             >
               <button
                 type="button"

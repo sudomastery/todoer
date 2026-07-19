@@ -2,21 +2,12 @@
 
 import { useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import {
-  addDays,
-  addMonths,
-  endOfMonth,
-  endOfWeek,
-  format,
-  isSameDay,
-  isSameMonth,
-  startOfMonth,
-  startOfWeek,
-} from 'date-fns';
+import { addMonths, format, isSameDay, isSameMonth, startOfMonth } from 'date-fns';
 import {
   filterTasks,
   groupTasks,
   isDefaultDisplay,
+  monthGrid,
   PRIORITY_COLORS,
   sortTasksBy,
   type DisplayPrefs,
@@ -116,11 +107,7 @@ export function TaskView({
 
 function CalendarLayout({ tasks }: { tasks: TaskWithLabels[] }) {
   const [month, setMonth] = useState(() => startOfMonth(new Date()));
-  const gridStart = startOfWeek(month, { weekStartsOn: 1 });
-  const gridEnd = endOfWeek(endOfMonth(month), { weekStartsOn: 1 });
-
-  const days: Date[] = [];
-  for (let d = gridStart; d <= gridEnd; d = addDays(d, 1)) days.push(d);
+  const days = monthGrid(month).flat();
 
   const undated = tasks.filter((t) => !t.due_date);
   const today = new Date();

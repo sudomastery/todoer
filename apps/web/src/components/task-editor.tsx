@@ -2,10 +2,9 @@
 
 import { useMemo, useRef, useState } from 'react';
 import clsx from 'clsx';
-import { Hash, Repeat } from 'lucide-react';
+import { Hash } from 'lucide-react';
 import {
   colorHex,
-  describeRecurrence,
   ensureLabels,
   parseQuickAdd,
   type Priority,
@@ -18,7 +17,7 @@ import {
   useSupabase,
   useUpdateTask,
 } from '@/lib/hooks';
-import { DueChip, PriorityChip, ProjectPicker } from '@/components/pickers';
+import { DueChip, PriorityChip, ProjectPicker, RepeatChip } from '@/components/pickers';
 import { TaskComments } from '@/components/task-comments';
 import { LabelPicker } from '@/components/pickers';
 import { Chip } from '@/components/ui';
@@ -62,6 +61,12 @@ export function TaskEditor({
   const [dueOverride, setDueOverride] = useState<string | null | undefined>(
     isEdit ? task.due_date : undefined,
   );
+  const [timeOverride, setTimeOverride] = useState<string | null | undefined>(
+    isEdit ? task.due_time : undefined,
+  );
+  const [recurrenceOverride, setRecurrenceOverride] = useState<string | null | undefined>(
+    isEdit ? task.recurrence : undefined,
+  );
   const [priorityOverride, setPriorityOverride] = useState<Priority | undefined>(
     isEdit ? task.priority : undefined,
   );
@@ -83,6 +88,9 @@ export function TaskEditor({
   }, [parsed, projects]);
 
   const effDue = dueOverride !== undefined ? dueOverride : (parsed?.due_date ?? defaultDueDate ?? null);
+  const effTime = timeOverride !== undefined ? timeOverride : (parsed?.due_time ?? null);
+  const effRecurrence =
+    recurrenceOverride !== undefined ? recurrenceOverride : (parsed?.recurrence ?? null);
   const effPriority: Priority = priorityOverride ?? parsed?.priority ?? 4;
   const inbox = (projects ?? []).find((p) => p.is_inbox);
   const effProjectId =
@@ -106,6 +114,9 @@ export function TaskEditor({
             content,
             description: description.trim(),
             due_date: effDue,
+            // Cleared alongside the date: a time with no day would never fire.
+            due_time: effDue ? effTime : null,
+            recurrence: effRecurrence,
             priority: effPriority,
             project_id: effProjectId,
           },
@@ -127,14 +138,16 @@ export function TaskEditor({
         parent_id: parentId ?? null,
         priority: effPriority,
         due_date: effDue,
-        due_time: parsed.due_time,
-        recurrence: parsed.recurrence,
+        due_time: effDue ? effTime : null,
+        recurrence: effRecurrence,
         label_ids: [...new Set([...parsedLabels.map((l) => l.id), ...effLabelIds])],
       });
       // stay open for rapid entry
       setText('');
       setDescription('');
       setDueOverride(undefined);
+      setTimeOverride(undefined);
+      setRecurrenceOverride(undefined);
       setPriorityOverride(undefined);
       setLabelIdsOverride(undefined);
       inputRef.current?.focus();
@@ -177,7 +190,12 @@ export function TaskEditor({
       />
 
       <div className="mt-3 flex flex-wrap items-center gap-1.5">
-        <DueChip value={effDue} onChange={setDueOverride} />
+        <DueChip
+          value={effDue}
+          onChange={setDueOverride}
+          time={effTime}
+          onTimeChange={setTimeOverride}
+        />
         <PriorityChip value={effPriority} onChange={setPriorityOverride} />
         <LabelPicker value={effLabelIds} onChange={setLabelIdsOverride}>
           <Chip active={effLabels.length > 0}>
@@ -185,12 +203,7 @@ export function TaskEditor({
             {effLabels.length > 0 ? effLabels.map((l) => l.name).join(', ') : 'Labels'}
           </Chip>
         </LabelPicker>
-        {parsed?.recurrence && (
-          <Chip active>
-            <Repeat className="h-3.5 w-3.5" />
-            {describeRecurrence(parsed.recurrence)}
-          </Chip>
-        )}
+        <RepeatChip value={effRecurrence} dueDate={effDue} onChange={setRecurrenceOverride} />
       </div>
 
       <div className="mt-3 flex items-center justify-between border-t border-border-default pt-3">

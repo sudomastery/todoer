@@ -4,11 +4,15 @@ import { format, addDays, nextSaturday } from 'date-fns';
 import { Ionicons } from '@expo/vector-icons';
 import {
   colorHex,
+  describeRecurrence,
   formatDueDate,
   PRIORITY_COLORS,
+  recurrenceOptions,
   type Priority,
   type TaskWithLabels,
 } from '@todoer/shared';
+import { DateGrid } from './DateGrid';
+import { TimeRow } from './TimeRow';
 import { useLabels, useProjects, useSetTaskLabels, useUpdateTask } from '../lib/hooks';
 import { useKeyboardOffset } from '../lib/keyboard';
 import { useTheme } from '../lib/theme';
@@ -38,6 +42,9 @@ export function TaskEditSheet({
   const [due, setDue] = useState<string | null>(task.due_date);
   const [priority, setPriority] = useState<Priority>(task.priority);
   const [projectId, setProjectId] = useState(task.project_id);
+  const [dueTime, setDueTime] = useState<string | null>(task.due_time);
+  const [recurrence, setRecurrence] = useState<string | null>(task.recurrence);
+  const [showGrid, setShowGrid] = useState(false);
   const [labelIds, setLabelIds] = useState<string[]>(task.label_ids);
   const { offset, onLayout } = useKeyboardOffset();
 
@@ -46,9 +53,12 @@ export function TaskEditSheet({
       setContent(task.content);
       setDescription(task.description);
       setDue(task.due_date);
+      setDueTime(task.due_time);
+      setRecurrence(task.recurrence);
       setPriority(task.priority);
       setProjectId(task.project_id);
       setLabelIds(task.label_ids);
+      setShowGrid(false);
     }
   }, [visible, task]);
 
@@ -61,6 +71,9 @@ export function TaskEditSheet({
         content: text,
         description: description.trim(),
         due_date: due,
+        // Cleared alongside the date: a time with no day would never fire.
+        due_time: due ? dueTime : null,
+        recurrence,
         priority,
         project_id: projectId,
       },
@@ -118,6 +131,51 @@ export function TaskEditSheet({
               {due && !dueIsPreset && (
                 <View style={chip(true)}>
                   <Text style={{ color: t.brand, fontSize: 13 }}>{formatDueDate(due)}</Text>
+                </View>
+              )}
+              <Pressable onPress={() => setShowGrid((s) => !s)} style={chip(showGrid)}>
+                <Ionicons
+                  name="calendar-outline"
+                  size={13}
+                  color={showGrid ? t.brand : t.fgSecondary}
+                />
+                <Text style={{ color: showGrid ? t.brand : t.fgSecondary, fontSize: 13 }}>
+                  Pick date
+                </Text>
+              </Pressable>
+            </View>
+            {showGrid && <DateGrid value={due} onChange={setDue} />}
+
+            {due && (
+              <>
+                <Text style={[styles.groupLabel, { color: t.fgFaint }]}>Time</Text>
+                <TimeRow value={dueTime} onChange={setDueTime} />
+              </>
+            )}
+
+            <Text style={[styles.groupLabel, { color: t.fgFaint }]}>Repeat</Text>
+            <View style={styles.chipRow}>
+              {recurrenceOptions(due).map((o) => (
+                <Pressable
+                  key={o.label}
+                  onPress={() => setRecurrence(recurrence === o.rule ? null : o.rule)}
+                  style={chip(recurrence === o.rule)}
+                >
+                  <Text
+                    style={{
+                      color: recurrence === o.rule ? t.brand : t.fgSecondary,
+                      fontSize: 13,
+                    }}
+                  >
+                    {o.label}
+                  </Text>
+                </Pressable>
+              ))}
+              {recurrence && !recurrenceOptions(due).some((o) => o.rule === recurrence) && (
+                <View style={chip(true)}>
+                  <Text style={{ color: t.brand, fontSize: 13 }}>
+                    {describeRecurrence(recurrence)}
+                  </Text>
                 </View>
               )}
             </View>
