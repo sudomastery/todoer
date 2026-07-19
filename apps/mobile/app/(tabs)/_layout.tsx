@@ -1,5 +1,6 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { Greeting } from '../../components/Greeting';
 import { useTheme } from '../../lib/theme';
 
 export default function TabsLayout() {
@@ -11,6 +12,7 @@ export default function TabsLayout() {
         headerTintColor: t.fg,
         headerShadowVisible: false,
         headerTitleStyle: { fontWeight: '700', fontSize: 20 },
+        headerRight: () => <Greeting />,
         tabBarStyle: { backgroundColor: t.bgElevated, borderTopColor: t.border },
         tabBarActiveTintColor: t.brand,
         tabBarInactiveTintColor: t.fgFaint,

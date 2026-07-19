@@ -184,6 +184,18 @@ try {
   check('sound preference persisted', soundPref === 'ding', soundPref);
   await page.keyboard.press('Escape');
 
+  console.log('== accent theme ==');
+  await page.getByText('E2E Tester').click();
+  await page.getByText('Theme', { exact: true }).click();
+  await page.getByRole('button', { name: 'Ocean blue' }).click();
+  const accentPref = await page.evaluate(() => localStorage.getItem('todoer.theme'));
+  check('accent preference persisted', accentPref === 'ocean', accentPref);
+  const brandVar = await page.evaluate(() =>
+    document.documentElement.style.getPropertyValue('--color-brand'),
+  );
+  check('accent css variable applied', brandVar.trim() === '#2563eb', brandVar);
+  await page.keyboard.press('Escape');
+
   console.log('== mcp instructions ==');
   await page.getByText('E2E Tester').click();
   await page.getByText('AI assistant').click();

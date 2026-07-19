@@ -1,5 +1,5 @@
 import { SectionList, StyleSheet, Text, View } from 'react-native';
-import type { Label, Project, TaskWithLabels } from '@todoer/shared';
+import { sortTasksBy, type Label, type Project, type SortBy, type TaskWithLabels } from '@todoer/shared';
 import { TaskRow } from './TaskRow';
 import { useTheme } from '../lib/theme';
 
@@ -7,13 +7,6 @@ export interface TaskSection {
   title: string | null;
   data: TaskWithLabels[];
   accent?: string;
-}
-
-function sortTasks(tasks: TaskWithLabels[]): TaskWithLabels[] {
-  return [...tasks].sort((a, b) => {
-    if (a.priority !== b.priority) return a.priority - b.priority;
-    return a.created_at.localeCompare(b.created_at);
-  });
 }
 
 /** Flattens parent tasks followed by their subtasks, preserving sections. */
@@ -24,6 +17,7 @@ export function TaskListView({
   labels,
   showProject = false,
   emptyMessage = 'No tasks here.',
+  sortBy = 'manual',
 }: {
   sections: TaskSection[];
   allTasks: TaskWithLabels[];
@@ -31,16 +25,17 @@ export function TaskListView({
   labels?: Label[];
   showProject?: boolean;
   emptyMessage?: string;
+  sortBy?: SortBy;
 }) {
   const t = useTheme();
 
   const prepared = sections
     .map((s) => {
-      const top = sortTasks(s.data.filter((task) => !task.parent_id));
+      const top = sortTasksBy(s.data.filter((task) => !task.parent_id), sortBy);
       const rows: { task: TaskWithLabels; depth: number }[] = [];
       for (const task of top) {
         rows.push({ task, depth: 0 });
-        for (const sub of sortTasks(allTasks.filter((x) => x.parent_id === task.id))) {
+        for (const sub of sortTasksBy(allTasks.filter((x) => x.parent_id === task.id), 'manual')) {
           rows.push({ task: sub, depth: 1 });
         }
       }

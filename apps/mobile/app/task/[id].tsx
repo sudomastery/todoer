@@ -33,6 +33,8 @@ import {
   useProjects,
   useUncompleteTask,
 } from '../../lib/hooks';
+import { AddTaskSheet } from '../../components/AddTaskSheet';
+import { TaskEditSheet } from '../../components/TaskEditSheet';
 import { useTheme } from '../../lib/theme';
 
 export default function TaskDetailScreen() {
@@ -50,6 +52,8 @@ export default function TaskDetailScreen() {
   const addComment = useAddComment();
   const deleteComment = useDeleteComment();
   const [commentText, setCommentText] = useState('');
+  const [editing, setEditing] = useState(false);
+  const [addingSubtask, setAddingSubtask] = useState(false);
 
   const task =
     (active ?? []).find((x) => x.id === id) ?? (completedTasks ?? []).find((x) => x.id === id);
@@ -160,6 +164,27 @@ export default function TaskDetailScreen() {
           )}
         </View>
 
+        <View style={styles.actionRow}>
+          <Pressable
+            onPress={() => setEditing(true)}
+            style={[styles.actionBtn, { borderColor: t.border }]}
+          >
+            <Ionicons name="pencil-outline" size={15} color={t.fgSecondary} />
+            <Text style={{ color: t.fgSecondary, fontSize: 13, fontWeight: '500' }}>Edit</Text>
+          </Pressable>
+          {!task.parent_id && !task.is_completed && (
+            <Pressable
+              onPress={() => setAddingSubtask(true)}
+              style={[styles.actionBtn, { borderColor: t.border }]}
+            >
+              <Ionicons name="add" size={16} color={t.fgSecondary} />
+              <Text style={{ color: t.fgSecondary, fontSize: 13, fontWeight: '500' }}>
+                Add subtask
+              </Text>
+            </Pressable>
+          )}
+        </View>
+
         <Text style={[styles.sectionTitle, { color: t.fg, borderTopColor: t.border }]}>
           Comments{comments && comments.length > 0 ? ` (${comments.length})` : ''}
         </Text>
@@ -204,6 +229,14 @@ export default function TaskDetailScreen() {
         </Pressable>
       </ScrollView>
 
+      <TaskEditSheet task={task} visible={editing} onClose={() => setEditing(false)} />
+      <AddTaskSheet
+        visible={addingSubtask}
+        onClose={() => setAddingSubtask(false)}
+        defaultProjectId={task.project_id}
+        parentId={task.id}
+      />
+
       <View style={[styles.composer, { borderTopColor: t.border, backgroundColor: t.bg }]}>
         <TextInput
           value={commentText}
@@ -246,6 +279,16 @@ const styles = StyleSheet.create({
   title: { fontSize: 18, fontWeight: '600', flex: 1, lineHeight: 24 },
   description: { fontSize: 14, marginTop: 10, lineHeight: 20 },
   metaBlock: { marginTop: 16, gap: 10 },
+  actionRow: { flexDirection: 'row', gap: 10, marginTop: 18 },
+  actionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
   metaLine: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   metaText: { fontSize: 14 },
   sectionTitle: {

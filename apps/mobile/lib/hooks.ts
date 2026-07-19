@@ -13,10 +13,14 @@ import {
   fetchCompletedSince,
   fetchCompletedTasks,
   fetchLabels,
+  fetchProfile,
   fetchProjects,
   fetchSections,
   parseQuickAdd,
+  setTaskLabels,
   uncompleteTask,
+  updateProject,
+  deleteProject,
   updateTask,
   type Project,
   type Task,
@@ -25,6 +29,10 @@ import {
 } from '@todoer/shared';
 import { supabase } from './supabase';
 import { playCompletionSound } from './sound';
+
+export function useProfile() {
+  return useQuery({ queryKey: ['profile'], queryFn: () => fetchProfile(supabase) });
+}
 
 export function useProjects() {
   return useQuery({ queryKey: ['projects'], queryFn: () => fetchProjects(supabase) });
@@ -170,6 +178,35 @@ export function useCreateProject() {
   });
 }
 
+export function useUpdateProject() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, patch }: { id: string; patch: Partial<Pick<Project, 'name' | 'color' | 'is_favorite' | 'is_archived'>> }) =>
+      updateProject(supabase, id, patch),
+    onSettled: () => qc.invalidateQueries({ queryKey: ['projects'] }),
+  });
+}
+
+export function useDeleteProject() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => deleteProject(supabase, id),
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ['projects'] });
+      qc.invalidateQueries({ queryKey: ['tasks'] });
+    },
+  });
+}
+
+export function useSetTaskLabels() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ task, labelIds }: { task: Pick<Task, 'id' | 'user_id'>; labelIds: string[] }) =>
+      setTaskLabels(supabase, task, labelIds),
+    onSettled: () => qc.invalidateQueries({ queryKey: ['tasks'] }),
+  });
+}
+
 /** Create a task from a quick-add string (dates, p1..p4, #project, @labels). */
 export function useQuickAdd() {
   const qc = useQueryClient();
@@ -178,10 +215,12 @@ export function useQuickAdd() {
       input,
       defaultProjectId,
       defaultDueDate,
+      parentId,
     }: {
       input: string;
       defaultProjectId: string;
       defaultDueDate?: string | null;
+      parentId?: string | null;
     }) => {
       const parsed = parseQuickAdd(input);
       if (!parsed.content) throw new Error('Task name is required');
@@ -200,6 +239,7 @@ export function useQuickAdd() {
       return createTask(supabase, {
         content: parsed.content,
         project_id: projectId,
+        parent_id: parentId ?? null,
         priority: parsed.priority,
         due_date: parsed.due_date ?? defaultDueDate ?? null,
         due_time: parsed.due_time,

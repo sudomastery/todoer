@@ -3,6 +3,7 @@ import type {
   Label,
   NewTaskInput,
   Priority,
+  Profile,
   Project,
   Section,
   Task,
@@ -242,6 +243,16 @@ export async function uncompleteTask(db: Client, id: string): Promise<void> {
 export async function setTaskPriority(db: Client, id: string, priority: Priority): Promise<void> {
   const { error } = await db.from('tasks').update({ priority }).eq('id', id);
   throwIf(error);
+}
+
+// ============================================================
+// Profile
+// ============================================================
+
+export async function fetchProfile(db: Client): Promise<Profile | null> {
+  const { data, error } = await db.from('profiles').select('*').maybeSingle();
+  throwIf(error);
+  return (data as Profile | null) ?? null;
 }
 
 // ============================================================

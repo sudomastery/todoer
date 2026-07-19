@@ -24,11 +24,13 @@ export function AddTaskSheet({
   onClose,
   defaultProjectId,
   defaultDueDate,
+  parentId,
 }: {
   visible: boolean;
   onClose: () => void;
   defaultProjectId?: string;
   defaultDueDate?: string | null;
+  parentId?: string | null;
 }) {
   const t = useTheme();
   const quickAdd = useQuickAdd();
@@ -62,6 +64,7 @@ export function AddTaskSheet({
       input: text,
       defaultProjectId: projectId,
       defaultDueDate,
+      parentId,
     });
     setText('');
     onClose();

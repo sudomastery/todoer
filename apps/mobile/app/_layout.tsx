@@ -58,6 +58,8 @@ export default function RootLayout() {
           <Stack.Screen name="task/[id]" options={{ title: 'Task' }} />
           <Stack.Screen name="completed" options={{ title: 'Completed' }} />
           <Stack.Screen name="stats" options={{ title: 'Productivity' }} />
+          <Stack.Screen name="calendar" options={{ title: 'Calendar' }} />
+          <Stack.Screen name="search" options={{ title: 'Search' }} />
         </Stack>
       </AuthGate>
     </QueryClientProvider>

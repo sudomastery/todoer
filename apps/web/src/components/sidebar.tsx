@@ -19,6 +19,7 @@ import {
   LogOut,
   Moon,
   MoreHorizontal,
+  Palette,
   PanelLeft,
   Pencil,
   Plus,
@@ -50,6 +51,7 @@ import {
 import { createClient } from '@/lib/supabase/client';
 import { SoundSettingsDialog } from '@/components/sound-settings';
 import { McpSettingsDialog } from '@/components/mcp-settings';
+import { ThemeSettingsDialog } from '@/components/theme-settings';
 
 function NavLink({
   href,
@@ -182,6 +184,7 @@ export function Sidebar({
   const [projectsExpanded, setProjectsExpanded] = useState(true);
   const [soundSettingsOpen, setSoundSettingsOpen] = useState(false);
   const [mcpOpen, setMcpOpen] = useState(false);
+  const [themeOpen, setThemeOpen] = useState(false);
 
   if (!open) return null;
 
@@ -265,6 +268,9 @@ export function Sidebar({
                 </>
               )}
             </DropdownItem>
+            <DropdownItem onSelect={() => setThemeOpen(true)}>
+              <Palette className="h-4 w-4" /> Theme
+            </DropdownItem>
             <DropdownItem onSelect={() => setSoundSettingsOpen(true)}>
               <Volume2 className="h-4 w-4" /> Completion sound
             </DropdownItem>
@@ -289,6 +295,7 @@ export function Sidebar({
       </div>
       <SoundSettingsDialog open={soundSettingsOpen} onOpenChange={setSoundSettingsOpen} />
       <McpSettingsDialog open={mcpOpen} onOpenChange={setMcpOpen} login={userEmail} />
+      <ThemeSettingsDialog open={themeOpen} onOpenChange={setThemeOpen} />
 
       <div className="px-3">
         <button
