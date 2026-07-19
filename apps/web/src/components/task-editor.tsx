@@ -19,6 +19,7 @@ import {
   useUpdateTask,
 } from '@/lib/hooks';
 import { DueChip, PriorityChip, ProjectPicker } from '@/components/pickers';
+import { TaskComments } from '@/components/task-comments';
 import { LabelPicker } from '@/components/pickers';
 import { Chip } from '@/components/ui';
 import { Tag } from 'lucide-react';
@@ -224,6 +225,8 @@ export function TaskEditor({
           </button>
         </div>
       </div>
+
+      {isEdit && <TaskComments taskId={task.id} />}
     </div>
   );
 }

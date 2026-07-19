@@ -115,6 +115,15 @@ try {
   check('task added to project', await page.getByText('Eggs').first().isVisible());
   await shot('project');
 
+  console.log('== comments ==');
+  await page.getByText('Eggs').first().click();
+  await page.getByPlaceholder('Add a comment').fill('Get the free range ones');
+  await page.getByRole('button', { name: 'Add comment' }).click();
+  await page.getByText('Get the free range ones').waitFor();
+  check('comment added and listed', true);
+  check('comment count shown', await page.getByText('Comments (1)').isVisible());
+  await page.getByRole('button', { name: 'Cancel' }).click();
+
   console.log('== display options ==');
   await page.getByRole('button', { name: 'Display' }).click();
   await page.getByRole('button', { name: 'Board' }).click();
