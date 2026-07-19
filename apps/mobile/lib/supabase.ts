@@ -11,6 +11,9 @@ export const supabase = createClient(
       autoRefreshToken: true,
       persistSession: true,
       detectSessionInUrl: false,
+      // A native app cannot keep an OAuth client secret, so Google sign in uses
+      // PKCE: the app proves it started the flow when exchanging the code.
+      flowType: 'pkce',
     },
   },
 );

@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { USERNAME_RE, isUsernameAvailable, resolveLoginEmail } from '@todoer/shared';
+import { signInWithGoogle } from '../lib/oauth';
 import { supabase } from '../lib/supabase';
 import { useTheme } from '../lib/theme';
 
@@ -25,6 +26,19 @@ export default function LoginScreen() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  async function googleSignIn() {
+    setError(null);
+    setNotice(null);
+    setLoading(true);
+    try {
+      await signInWithGoogle();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Google sign in failed.');
+    } finally {
+      setLoading(false);
+    }
+  }
 
   async function submit() {
     setError(null);
@@ -175,6 +189,21 @@ export default function LoginScreen() {
         )}
       </Pressable>
 
+      <View style={styles.dividerRow}>
+        <View style={[styles.divider, { backgroundColor: t.border }]} />
+        <Text style={{ color: t.fgFaint, fontSize: 12 }}>or</Text>
+        <View style={[styles.divider, { backgroundColor: t.border }]} />
+      </View>
+
+      <Pressable
+        onPress={googleSignIn}
+        disabled={loading}
+        style={[styles.googleButton, { borderColor: t.border, opacity: loading ? 0.7 : 1 }]}
+      >
+        <Ionicons name="logo-google" size={17} color={t.fg} />
+        <Text style={{ color: t.fg, fontSize: 15, fontWeight: '600' }}>Continue with Google</Text>
+      </Pressable>
+
       <Pressable onPress={() => setMode(mode === 'login' ? 'signup' : 'login')}>
         <Text style={[styles.switch, { color: t.fgSecondary }]}>
           {mode === 'login' ? (
@@ -212,6 +241,17 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   forgot: { fontSize: 13, textAlign: 'right', marginBottom: 10 },
+  dividerRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 16 },
+  divider: { flex: 1, height: StyleSheet.hairlineWidth },
+  googleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingVertical: 13,
+  },
   error: { color: '#d1453b', fontSize: 13, marginBottom: 8 },
   notice: { color: '#246fe0', fontSize: 13, marginBottom: 8 },
   button: {
