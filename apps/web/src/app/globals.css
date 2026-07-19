@@ -19,6 +19,7 @@
 
 :root {
   --bg: #ffffff;
+  --bg-card: #ffffff;
   --bg-sidebar: #fcfaf8;
   --bg-hover: #f2efed;
   --bg-active: #ffefe5;
@@ -31,6 +32,7 @@
 
 .dark {
   --bg: #1e1e1e;
+  --bg-card: #242424;
   --bg-sidebar: #282828;
   --bg-hover: #333333;
   --bg-active: #472525;
@@ -43,6 +45,7 @@
 
 @theme inline {
   --color-bg: var(--bg);
+  --color-bg-card: var(--bg-card);
   --color-bg-sidebar: var(--bg-sidebar);
   --color-bg-hover: var(--bg-hover);
   --color-bg-active: var(--bg-active);

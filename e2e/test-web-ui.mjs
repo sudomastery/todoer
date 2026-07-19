@@ -38,6 +38,8 @@ try {
 
   const email = `e2e.${Date.now()}@test.local`;
   await page.goto(`${BASE}/signup`);
+  // wait for hydration; clicking before React attaches submits the form natively
+  await page.waitForLoadState('networkidle');
   await page.getByPlaceholder('Your name').fill('E2E Tester');
   await page.getByPlaceholder('Username').fill(`e2e_${Date.now()}`);
   await page.getByPlaceholder('Email').fill(email);
