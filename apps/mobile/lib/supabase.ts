@@ -11,6 +11,10 @@ export const supabase = createClient(
       autoRefreshToken: true,
       persistSession: true,
       detectSessionInUrl: false,
+      // Left on the default implicit flow on purpose. Signup confirmation and
+      // password reset links from this client are opened on the web, which
+      // cannot complete a PKCE exchange started here. Google sign in uses its
+      // own PKCE client, see lib/oauth.ts.
     },
   },
 );
