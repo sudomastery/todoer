@@ -15,6 +15,10 @@ import { signInWithGoogle } from '../lib/oauth';
 import { supabase } from '../lib/supabase';
 import { useTheme } from '../lib/theme';
 
+// Matches the web app's NEXT_PUBLIC_GOOGLE_AUTH gate, so the button is hidden
+// when the provider is turned off on the Supabase project.
+const googleEnabled = process.env.EXPO_PUBLIC_GOOGLE_AUTH === '1';
+
 export default function LoginScreen() {
   const t = useTheme();
   const [mode, setMode] = useState<'login' | 'signup'>('login');
@@ -32,7 +36,8 @@ export default function LoginScreen() {
     setNotice(null);
     setLoading(true);
     try {
-      await signInWithGoogle();
+      const result = await signInWithGoogle();
+      if (result === 'cancelled') setNotice('Google sign in was cancelled.');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Google sign in failed.');
     } finally {
@@ -189,20 +194,26 @@ export default function LoginScreen() {
         )}
       </Pressable>
 
-      <View style={styles.dividerRow}>
-        <View style={[styles.divider, { backgroundColor: t.border }]} />
-        <Text style={{ color: t.fgFaint, fontSize: 12 }}>or</Text>
-        <View style={[styles.divider, { backgroundColor: t.border }]} />
-      </View>
+      {googleEnabled && (
+        <>
+          <View style={styles.dividerRow}>
+            <View style={[styles.divider, { backgroundColor: t.border }]} />
+            <Text style={{ color: t.fgFaint, fontSize: 12 }}>or</Text>
+            <View style={[styles.divider, { backgroundColor: t.border }]} />
+          </View>
 
-      <Pressable
-        onPress={googleSignIn}
-        disabled={loading}
-        style={[styles.googleButton, { borderColor: t.border, opacity: loading ? 0.7 : 1 }]}
-      >
-        <Ionicons name="logo-google" size={17} color={t.fg} />
-        <Text style={{ color: t.fg, fontSize: 15, fontWeight: '600' }}>Continue with Google</Text>
-      </Pressable>
+          <Pressable
+            onPress={googleSignIn}
+            disabled={loading}
+            style={[styles.googleButton, { borderColor: t.border, opacity: loading ? 0.7 : 1 }]}
+          >
+            <Ionicons name="logo-google" size={17} color={t.fg} />
+            <Text style={{ color: t.fg, fontSize: 15, fontWeight: '600' }}>
+              Continue with Google
+            </Text>
+          </Pressable>
+        </>
+      )}
 
       <Pressable onPress={() => setMode(mode === 'login' ? 'signup' : 'login')}>
         <Text style={[styles.switch, { color: t.fgSecondary }]}>

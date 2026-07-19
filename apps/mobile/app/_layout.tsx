@@ -27,9 +27,11 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!ready) return;
-    const onLogin = segments[0] === 'login';
-    if (!session && !onLogin) router.replace('/login');
-    if (session && onLogin) router.replace('/(tabs)/today');
+    // The OAuth callback runs without a session by definition: it is the screen
+    // that creates one. Leave it alone until the exchange finishes.
+    const onPublicRoute = segments[0] === 'login' || segments[0] === 'auth';
+    if (!session && !onPublicRoute) router.replace('/login');
+    if (session && segments[0] === 'login') router.replace('/(tabs)/today');
   }, [ready, session, segments, router]);
 
   if (!ready) return null;
@@ -53,6 +55,7 @@ export default function RootLayout() {
           <Stack.Screen name="index" options={{ headerShown: false }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="login" options={{ headerShown: false }} />
+          <Stack.Screen name="auth/callback" options={{ headerShown: false }} />
           <Stack.Screen name="project/[id]" options={{ title: '' }} />
           <Stack.Screen name="label/[id]" options={{ title: '' }} />
           <Stack.Screen name="task/[id]" options={{ title: 'Task' }} />
