@@ -6,6 +6,7 @@ import { useActiveTasks, useLabels, useProjects } from '../../lib/hooks';
 import { useDisplayPrefs } from '../../lib/display';
 import { DisplayButton, DisplaySheet } from '../../components/DisplaySheet';
 import { TaskListView, type TaskSection } from '../../components/TaskListView';
+import { BoardView } from '../../components/BoardView';
 
 export default function LabelScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -31,15 +32,27 @@ export default function LabelScreen() {
     <View style={{ flex: 1 }}>
       <Stack.Screen options={{ title: label ? `@${label.name}` : 'Label' }} />
       <DisplayButton prefs={prefs} onPress={() => setDisplayOpen(true)} />
-      <TaskListView
-        sections={sections}
-        allTasks={all}
-        projects={projects}
-        labels={labels}
-        showProject
-        sortBy={prefs.sortBy}
-        emptyMessage="No active tasks with this label."
-      />
+      {prefs.layout === 'board' ? (
+        <BoardView
+          sections={sections}
+          allTasks={all}
+          projects={projects}
+          labels={labels}
+          showProject
+          sortBy={prefs.sortBy}
+          emptyMessage="No active tasks with this label."
+        />
+      ) : (
+        <TaskListView
+          sections={sections}
+          allTasks={all}
+          projects={projects}
+          labels={labels}
+          showProject
+          sortBy={prefs.sortBy}
+          emptyMessage="No active tasks with this label."
+        />
+      )}
       <DisplaySheet
         visible={displayOpen}
         onClose={() => setDisplayOpen(false)}

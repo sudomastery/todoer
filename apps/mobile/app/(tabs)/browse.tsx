@@ -12,7 +12,20 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { buildExport, colorHex, deleteAccount } from '@todoer/shared';
+import {
+  buildExport,
+  colorHex,
+  deleteAccount,
+  DEFAULT_NOTIFICATION_PREFS,
+  LEAD_OPTIONS,
+  type NotificationPrefs,
+} from '@todoer/shared';
+import {
+  ensurePermission,
+  getNotificationPrefs,
+  rescheduleAll,
+  setNotificationPrefs,
+} from '../../lib/notifications';
 import {
   useActiveTasks,
   useCreateProject,
@@ -101,6 +114,133 @@ function ThemeSetting() {
           );
         })}
       </View>
+    </View>
+  );
+}
+
+function Toggle({ value, onPress }: { value: boolean; onPress: () => void }) {
+  const t = useTheme();
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="switch"
+      accessibilityState={{ checked: value }}
+      style={[styles.toggle, { backgroundColor: value ? t.brand : t.border }]}
+    >
+      <View style={[styles.toggleKnob, value && { alignSelf: 'flex-end' }]} />
+    </Pressable>
+  );
+}
+
+function NotificationSetting() {
+  const t = useTheme();
+  const { data: tasks } = useActiveTasks();
+  const [prefs, setPrefs] = useState<NotificationPrefs>(DEFAULT_NOTIFICATION_PREFS);
+
+  useEffect(() => {
+    getNotificationPrefs().then(setPrefs);
+  }, []);
+
+  async function apply(patch: Partial<NotificationPrefs>) {
+    let next = { ...prefs, ...patch };
+    if (patch.enabled === true && !(await ensurePermission())) {
+      Alert.alert(
+        'Notifications are blocked',
+        'Allow notifications for Todoer in your system settings to get reminders.',
+      );
+      next = { ...next, enabled: false };
+    }
+    setPrefs(next);
+    await setNotificationPrefs(next);
+    await rescheduleAll(tasks ?? []);
+  }
+
+  return (
+    <View>
+      <View style={styles.settingRow}>
+        <Text style={[styles.rowText, { color: t.fg }]}>Reminders</Text>
+        <Toggle value={prefs.enabled} onPress={() => void apply({ enabled: !prefs.enabled })} />
+      </View>
+
+      {prefs.enabled && (
+        <>
+          <View style={styles.settingRow}>
+            <Text style={[styles.rowText, { color: t.fg }]}>Remind me at the due time</Text>
+            <Toggle
+              value={prefs.dueReminders}
+              onPress={() => void apply({ dueReminders: !prefs.dueReminders })}
+            />
+          </View>
+
+          {prefs.dueReminders && (
+            <>
+              <Text style={[styles.settingLabel, { color: t.fgSecondary }]}>How early</Text>
+              <View style={styles.chipRow}>
+                {LEAD_OPTIONS.map((m) => (
+                  <Pressable
+                    key={m}
+                    onPress={() => void apply({ leadMinutes: m })}
+                    style={[
+                      styles.chip,
+                      { borderColor: prefs.leadMinutes === m ? t.brand : t.border },
+                      prefs.leadMinutes === m && { backgroundColor: t.bgPressed },
+                    ]}
+                  >
+                    <Text
+                      style={{
+                        color: prefs.leadMinutes === m ? t.brand : t.fgSecondary,
+                        fontSize: 13,
+                      }}
+                    >
+                      {m === 0 ? 'On time' : `${m} min`}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </>
+          )}
+
+          <View style={styles.settingRow}>
+            <Text style={[styles.rowText, { color: t.fg }]}>Daily summary</Text>
+            <Toggle
+              value={prefs.dailyDigest}
+              onPress={() => void apply({ dailyDigest: !prefs.dailyDigest })}
+            />
+          </View>
+
+          {prefs.dailyDigest && (
+            <>
+              <Text style={[styles.settingLabel, { color: t.fgSecondary }]}>Summary time</Text>
+              <View style={styles.chipRow}>
+                {[6, 8, 9, 12, 18, 20].map((h) => (
+                  <Pressable
+                    key={h}
+                    onPress={() => void apply({ digestHour: h })}
+                    style={[
+                      styles.chip,
+                      { borderColor: prefs.digestHour === h ? t.brand : t.border },
+                      prefs.digestHour === h && { backgroundColor: t.bgPressed },
+                    ]}
+                  >
+                    <Text
+                      style={{
+                        color: prefs.digestHour === h ? t.brand : t.fgSecondary,
+                        fontSize: 13,
+                      }}
+                    >
+                      {h.toString().padStart(2, '0')}:00
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </>
+          )}
+
+          <Text style={{ color: t.fgFaint, fontSize: 12, marginTop: 8, lineHeight: 17 }}>
+            Reminders need a due time on the task. All-day tasks appear in the daily summary.
+          </Text>
+        </>
+      )}
     </View>
   );
 }
@@ -314,6 +454,10 @@ export default function BrowseScreen() {
         <SoundSetting />
       </CollapsibleSection>
 
+      <CollapsibleSection title="Notifications">
+        <NotificationSetting />
+      </CollapsibleSection>
+
       <CollapsibleSection title="Account">
         <Pressable
           onPress={async () => {
@@ -474,6 +618,25 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   settingLabel: { fontSize: 12, fontWeight: '600', marginTop: 8, marginBottom: 2 },
+  settingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 12,
+  },
+  toggle: {
+    width: 44,
+    height: 26,
+    borderRadius: 13,
+    padding: 3,
+    justifyContent: 'center',
+  },
+  toggleKnob: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#ffffff',
+  },
   row: {
     flexDirection: 'row',
     alignItems: 'center',

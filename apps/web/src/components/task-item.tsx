@@ -130,7 +130,7 @@ export function TaskItem({
           : 'border-b border-border-default last:border-b-0',
       )}
     >
-      <div className="group flex items-start gap-2.5 py-2.5">
+      <div className="group relative flex items-start gap-2.5 py-2.5">
         {subtasks.length > 0 ? (
           <button
             type="button"
@@ -203,7 +203,13 @@ export function TaskItem({
         </div>
 
         {!completedView && (
-          <div className="hidden shrink-0 items-center gap-0.5 group-hover:flex">
+          <div
+            className={clsx(
+              // Floated above the row so showing the actions never reflows the task text.
+              'absolute right-0 top-1.5 z-10 hidden items-center gap-0.5 rounded-md pl-3 group-hover:flex',
+              card ? 'bg-bg-card' : 'bg-bg',
+            )}
+          >
             <IconButton label="Edit" onClick={() => setEditing(true)}>
               <Pencil className="h-4 w-4" />
             </IconButton>

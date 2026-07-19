@@ -1,10 +1,21 @@
+import { useEffect } from 'react';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Greeting } from '../../components/Greeting';
+import { useActiveTasks } from '../../lib/hooks';
+import { rescheduleAll } from '../../lib/notifications';
 import { useTheme } from '../../lib/theme';
 
 export default function TabsLayout() {
   const t = useTheme();
+  const { data: tasks } = useActiveTasks();
+
+  // Scheduled reminders are derived from the task list, so rebuild them
+  // whenever it changes (add, edit, complete, or a realtime update).
+  useEffect(() => {
+    if (tasks) void rescheduleAll(tasks);
+  }, [tasks]);
+
   return (
     <Tabs
       screenOptions={{

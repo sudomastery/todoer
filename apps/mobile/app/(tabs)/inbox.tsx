@@ -5,6 +5,7 @@ import { useActiveTasks, useLabels, useProjects } from '../../lib/hooks';
 import { useDisplayPrefs } from '../../lib/display';
 import { DisplayButton, DisplaySheet } from '../../components/DisplaySheet';
 import { TaskListView, type TaskSection } from '../../components/TaskListView';
+import { BoardView } from '../../components/BoardView';
 import { AddTaskSheet } from '../../components/AddTaskSheet';
 import { Fab } from '../../components/Fab';
 
@@ -32,14 +33,25 @@ export default function InboxScreen() {
   return (
     <View style={{ flex: 1 }}>
       <DisplayButton prefs={prefs} onPress={() => setDisplayOpen(true)} />
-      <TaskListView
-        sections={sections}
-        allTasks={all}
-        projects={projects}
-        labels={labels}
-        sortBy={prefs.sortBy}
-        emptyMessage="Your inbox is empty. Capture a task and sort it later."
-      />
+      {prefs.layout === 'board' ? (
+        <BoardView
+          sections={sections}
+          allTasks={all}
+          projects={projects}
+          labels={labels}
+          sortBy={prefs.sortBy}
+          emptyMessage="Your inbox is empty. Capture a task and sort it later."
+        />
+      ) : (
+        <TaskListView
+          sections={sections}
+          allTasks={all}
+          projects={projects}
+          labels={labels}
+          sortBy={prefs.sortBy}
+          emptyMessage="Your inbox is empty. Capture a task and sort it later."
+        />
+      )}
       <Fab onPress={() => setAdding(true)} />
       <AddTaskSheet
         visible={adding}

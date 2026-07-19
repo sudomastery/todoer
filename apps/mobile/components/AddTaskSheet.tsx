@@ -1,14 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import {
-  Keyboard,
-  Modal,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { useMemo, useState } from 'react';
+import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import {
   describeRecurrence,
@@ -17,6 +8,7 @@ import {
   PRIORITY_COLORS,
 } from '@todoer/shared';
 import { useProjects, useQuickAdd } from '../lib/hooks';
+import { useKeyboardOffset } from '../lib/keyboard';
 import { useTheme } from '../lib/theme';
 
 export function AddTaskSheet({
@@ -36,22 +28,7 @@ export function AddTaskSheet({
   const quickAdd = useQuickAdd();
   const { data: projects } = useProjects();
   const [text, setText] = useState('');
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
-
-  // KeyboardAvoidingView is unreliable inside a transparent Modal on Android,
-  // so track the keyboard height ourselves and pad the sheet up by that much.
-  useEffect(() => {
-    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
-    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-    const show = Keyboard.addListener(showEvent, (e) =>
-      setKeyboardHeight(e.endCoordinates.height),
-    );
-    const hide = Keyboard.addListener(hideEvent, () => setKeyboardHeight(0));
-    return () => {
-      show.remove();
-      hide.remove();
-    };
-  }, []);
+  const { offset, onLayout } = useKeyboardOffset();
 
   const inbox = (projects ?? []).find((p) => p.is_inbox);
   const parsed = useMemo(() => parseQuickAdd(text), [text]);
@@ -78,8 +55,8 @@ export function AddTaskSheet({
       statusBarTranslucent
       onRequestClose={onClose}
     >
-      <Pressable style={styles.backdrop} onPress={onClose} />
-      <View style={[styles.sheetWrap, { paddingBottom: keyboardHeight }]}>
+      <View style={[styles.root, { paddingBottom: offset }]} onLayout={onLayout}>
+        <Pressable style={styles.backdrop} onPress={onClose} />
         <View style={[styles.sheet, { backgroundColor: t.bgElevated }]}>
           <TextInput
             autoFocus
@@ -155,8 +132,8 @@ export function AddTaskSheet({
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' },
-  sheetWrap: { position: 'absolute', left: 0, right: 0, bottom: 0 },
+  root: { flex: 1, justifyContent: 'flex-end' },
+  backdrop: { ...(StyleSheet.absoluteFill as object), backgroundColor: 'rgba(0,0,0,0.4)' },
   sheet: {
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,

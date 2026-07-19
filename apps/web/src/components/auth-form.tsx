@@ -78,6 +78,20 @@ export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
     router.refresh();
   }
 
+  // Only offered once Google is configured as a provider in the Supabase
+  // dashboard; without that the redirect just fails.
+  const googleEnabled = process.env.NEXT_PUBLIC_GOOGLE_AUTH === '1';
+
+  async function signInWithGoogle() {
+    setError(null);
+    const supabase = createClient();
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
+    });
+    if (error) setError(error.message);
+  }
+
   const inputClass =
     'w-full rounded-md border border-border-strong bg-bg px-3 py-2.5 text-sm outline-none focus:border-fg-faint';
 
@@ -166,6 +180,29 @@ export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
             {mode === 'login' ? 'Log in' : 'Sign up'}
           </button>
         </form>
+
+        {googleEnabled && (
+          <>
+            <div className="my-5 flex items-center gap-3 text-xs text-fg-faint">
+              <span className="h-px flex-1 bg-border-default" />
+              or
+              <span className="h-px flex-1 bg-border-default" />
+            </div>
+            <button
+              type="button"
+              onClick={signInWithGoogle}
+              className="flex w-full items-center justify-center gap-2 rounded-md border border-border-strong py-2.5 text-sm font-medium hover:bg-bg-hover"
+            >
+              <svg viewBox="0 0 18 18" className="h-4 w-4" aria-hidden="true">
+                <path fill="#4285F4" d="M17.6 9.2c0-.6-.1-1.3-.2-1.9H9v3.5h4.8a4.1 4.1 0 0 1-1.8 2.7v2.3h2.9c1.7-1.6 2.7-3.9 2.7-6.6Z" />
+                <path fill="#34A853" d="M9 18c2.4 0 4.5-.8 6-2.2l-2.9-2.3c-.8.6-1.9.9-3.1.9-2.4 0-4.4-1.6-5.1-3.8H.9v2.3A9 9 0 0 0 9 18Z" />
+                <path fill="#FBBC05" d="M3.9 10.6a5.4 5.4 0 0 1 0-3.4V4.9H.9a9 9 0 0 0 0 8.1l3-2.4Z" />
+                <path fill="#EA4335" d="M9 3.6c1.3 0 2.5.5 3.4 1.3l2.6-2.6A9 9 0 0 0 .9 4.9l3 2.3C4.6 5.1 6.6 3.6 9 3.6Z" />
+              </svg>
+              Continue with Google
+            </button>
+          </>
+        )}
 
         <p className="mt-6 text-center text-sm text-fg-secondary">
           {mode === 'login' ? (

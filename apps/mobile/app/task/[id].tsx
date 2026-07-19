@@ -2,8 +2,6 @@ import { useState } from 'react';
 import {
   Alert,
   Keyboard,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -35,11 +33,13 @@ import {
 } from '../../lib/hooks';
 import { AddTaskSheet } from '../../components/AddTaskSheet';
 import { TaskEditSheet } from '../../components/TaskEditSheet';
+import { useKeyboardOffset } from '../../lib/keyboard';
 import { useTheme } from '../../lib/theme';
 
 export default function TaskDetailScreen() {
   const t = useTheme();
   const router = useRouter();
+  const { offset, onLayout } = useKeyboardOffset();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: active } = useActiveTasks();
   const { data: completedTasks } = useCompletedTasks();
@@ -81,10 +81,7 @@ export default function TaskDetailScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={{ flex: 1, backgroundColor: t.bg }}
-    >
+    <View style={{ flex: 1, backgroundColor: t.bg, paddingBottom: offset }} onLayout={onLayout}>
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 30 }}>
         <View style={styles.headRow}>
           <Pressable
@@ -261,7 +258,7 @@ export default function TaskDetailScreen() {
           <Ionicons name="arrow-up" size={18} color="#fff" />
         </Pressable>
       </View>
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 

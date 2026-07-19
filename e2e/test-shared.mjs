@@ -7,6 +7,12 @@ import {
   describeRecurrence,
 } from '../packages/shared/src/recurrence.ts';
 import {
+  DEFAULT_NOTIFICATION_PREFS,
+  digestBody,
+  dueReminders,
+  parseNotificationPrefs,
+} from '../packages/shared/src/notifications.ts';
+import {
   todayISO,
   formatDueDate,
   formatDue,
@@ -93,6 +99,55 @@ console.log('== dates ==');
 check('formatDueDate today', formatDueDate(today) === 'Today');
 check('formatDue with time', formatDue(today, '17:30:00') === 'Today 5:30 PM', formatDue(today, '17:30:00'));
 check('upcomingDays starts today', upcomingDays(14)[0] === today && upcomingDays(14).length === 14);
+
+console.log('== notifications ==');
+{
+  const prefs = { ...DEFAULT_NOTIFICATION_PREFS, enabled: true, leadMinutes: 10 };
+  const now = new Date('2026-07-17T10:00:00');
+  const task = (over) => ({
+    id: 'a',
+    content: 'Call the vet',
+    is_completed: false,
+    due_date: null,
+    due_time: null,
+    ...over,
+  });
+
+  check('defaults are off until the user opts in', DEFAULT_NOTIFICATION_PREFS.enabled === false);
+  check('bad json falls back to defaults', parseNotificationPrefs('{oops').enabled === false);
+  check(
+    'stored prefs merge over defaults',
+    parseNotificationPrefs('{"enabled":true}').digestHour === DEFAULT_NOTIFICATION_PREFS.digestHour,
+  );
+  check(
+    'reminder fires lead minutes early',
+    dueReminders([task({ due_date: '2026-07-17', due_time: '14:00:00' })], prefs, now)[0].at.getHours() === 13,
+  );
+  check(
+    'all-day tasks are left to the digest',
+    dueReminders([task({ due_date: '2026-07-17' })], prefs, now).length === 0,
+  );
+  check(
+    'past reminders are skipped',
+    dueReminders([task({ due_date: '2026-07-17', due_time: '09:00:00' })], prefs, now).length === 0,
+  );
+  check(
+    'completed tasks are skipped',
+    dueReminders([task({ due_date: '2026-07-17', due_time: '14:00:00', is_completed: true })], prefs, now).length === 0,
+  );
+  check(
+    'nothing is scheduled while reminders are off',
+    dueReminders([task({ due_date: '2026-07-17', due_time: '14:00:00' })], DEFAULT_NOTIFICATION_PREFS, now).length === 0,
+  );
+  check(
+    'digest counts overdue and today',
+    digestBody(
+      [task({ due_date: '2026-07-16' }), task({ id: 'b', content: 'Pay rent', due_date: '2026-07-17' })],
+      '2026-07-17',
+    ).startsWith('2 tasks due today'),
+  );
+  check('digest is null when nothing is due', digestBody([task({ due_date: '2026-07-20' })], '2026-07-17') === null);
+}
 
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

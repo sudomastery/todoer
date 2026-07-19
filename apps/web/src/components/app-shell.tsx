@@ -3,7 +3,8 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { PanelLeft } from 'lucide-react';
-import { useRealtimeSync } from '@/lib/hooks';
+import { useActiveTasks, useRealtimeSync } from '@/lib/hooks';
+import { runNotificationTick } from '@/lib/notifications';
 import { Sidebar } from '@/components/sidebar';
 import { QuickAddDialog } from '@/components/quick-add-dialog';
 import { SearchDialog } from '@/components/search-dialog';
@@ -21,6 +22,17 @@ const ShellContext = createContext<ShellContextValue>({
 
 export const useShell = () => useContext(ShellContext);
 
+/** Checks once a minute whether a reminder or the daily summary is due. */
+function useNotificationTicker() {
+  const { data: tasks } = useActiveTasks();
+  useEffect(() => {
+    if (!tasks) return;
+    runNotificationTick(tasks);
+    const id = window.setInterval(() => runNotificationTick(tasks), 60_000);
+    return () => window.clearInterval(id);
+  }, [tasks]);
+}
+
 function ShellInner({
   children,
   userEmail,
@@ -31,6 +43,7 @@ function ShellInner({
   userName: string;
 }) {
   useRealtimeSync();
+  useNotificationTicker();
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [quickAddOpen, setQuickAddOpen] = useState(false);

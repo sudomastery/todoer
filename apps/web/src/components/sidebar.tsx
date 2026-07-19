@@ -12,6 +12,7 @@ import {
   BarChart2,
   CheckCircle2,
   ChevronDown,
+  Bell,
   Download,
   ChevronRight,
   Hash,
@@ -51,6 +52,7 @@ import {
 import { createClient } from '@/lib/supabase/client';
 import { SoundSettingsDialog } from '@/components/sound-settings';
 import { McpSettingsDialog } from '@/components/mcp-settings';
+import { NotificationSettingsDialog } from '@/components/notification-settings';
 import { ThemeSettingsDialog } from '@/components/theme-settings';
 
 function NavLink({
@@ -185,6 +187,7 @@ export function Sidebar({
   const [soundSettingsOpen, setSoundSettingsOpen] = useState(false);
   const [mcpOpen, setMcpOpen] = useState(false);
   const [themeOpen, setThemeOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
 
   if (!open) return null;
 
@@ -274,6 +277,9 @@ export function Sidebar({
             <DropdownItem onSelect={() => setSoundSettingsOpen(true)}>
               <Volume2 className="h-4 w-4" /> Completion sound
             </DropdownItem>
+            <DropdownItem onSelect={() => setNotificationsOpen(true)}>
+              <Bell className="h-4 w-4" /> Notifications
+            </DropdownItem>
             <DropdownItem onSelect={() => setMcpOpen(true)}>
               <Bot className="h-4 w-4" /> AI assistant
             </DropdownItem>
@@ -296,6 +302,7 @@ export function Sidebar({
       <SoundSettingsDialog open={soundSettingsOpen} onOpenChange={setSoundSettingsOpen} />
       <McpSettingsDialog open={mcpOpen} onOpenChange={setMcpOpen} login={userEmail} />
       <ThemeSettingsDialog open={themeOpen} onOpenChange={setThemeOpen} />
+      <NotificationSettingsDialog open={notificationsOpen} onOpenChange={setNotificationsOpen} />
 
       <div className="px-3">
         <button

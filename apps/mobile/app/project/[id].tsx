@@ -6,6 +6,7 @@ import { useActiveTasks, useLabels, useProjects, useSections } from '../../lib/h
 import { useDisplayPrefs } from '../../lib/display';
 import { DisplayButton, DisplaySheet } from '../../components/DisplaySheet';
 import { TaskListView, type TaskSection } from '../../components/TaskListView';
+import { BoardView } from '../../components/BoardView';
 import { AddTaskSheet } from '../../components/AddTaskSheet';
 import { Fab } from '../../components/Fab';
 
@@ -42,14 +43,25 @@ export default function ProjectScreen() {
     <View style={{ flex: 1 }}>
       <Stack.Screen options={{ title: project?.name ?? 'Project' }} />
       <DisplayButton prefs={prefs} onPress={() => setDisplayOpen(true)} />
-      <TaskListView
-        sections={listSections}
-        allTasks={all}
-        projects={projects}
-        labels={labels}
-        sortBy={prefs.sortBy}
-        emptyMessage="No tasks in this project yet."
-      />
+      {prefs.layout === 'board' ? (
+        <BoardView
+          sections={listSections}
+          allTasks={all}
+          projects={projects}
+          labels={labels}
+          sortBy={prefs.sortBy}
+          emptyMessage="No tasks in this project yet."
+        />
+      ) : (
+        <TaskListView
+          sections={listSections}
+          allTasks={all}
+          projects={projects}
+          labels={labels}
+          sortBy={prefs.sortBy}
+          emptyMessage="No tasks in this project yet."
+        />
+      )}
       <Fab onPress={() => setAdding(true)} />
       <AddTaskSheet visible={adding} onClose={() => setAdding(false)} defaultProjectId={id} />
       <DisplaySheet

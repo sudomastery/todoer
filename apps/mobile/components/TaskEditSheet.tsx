@@ -1,15 +1,5 @@
 import { useEffect, useState } from 'react';
-import {
-  Keyboard,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { format, addDays, nextSaturday } from 'date-fns';
 import { Ionicons } from '@expo/vector-icons';
 import {
@@ -20,6 +10,7 @@ import {
   type TaskWithLabels,
 } from '@todoer/shared';
 import { useLabels, useProjects, useSetTaskLabels, useUpdateTask } from '../lib/hooks';
+import { useKeyboardOffset } from '../lib/keyboard';
 import { useTheme } from '../lib/theme';
 
 function iso(d: Date): string {
@@ -48,7 +39,7 @@ export function TaskEditSheet({
   const [priority, setPriority] = useState<Priority>(task.priority);
   const [projectId, setProjectId] = useState(task.project_id);
   const [labelIds, setLabelIds] = useState<string[]>(task.label_ids);
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const { offset, onLayout } = useKeyboardOffset();
 
   useEffect(() => {
     if (visible) {
@@ -60,17 +51,6 @@ export function TaskEditSheet({
       setLabelIds(task.label_ids);
     }
   }, [visible, task]);
-
-  useEffect(() => {
-    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
-    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-    const show = Keyboard.addListener(showEvent, (e) => setKeyboardHeight(e.endCoordinates.height));
-    const hide = Keyboard.addListener(hideEvent, () => setKeyboardHeight(0));
-    return () => {
-      show.remove();
-      hide.remove();
-    };
-  }, []);
 
   async function save() {
     const text = content.trim();
@@ -107,8 +87,8 @@ export function TaskEditSheet({
 
   return (
     <Modal visible={visible} animationType="slide" transparent statusBarTranslucent onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose} />
-      <View style={[styles.sheetWrap, { paddingBottom: keyboardHeight }]}>
+      <View style={[styles.root, { paddingBottom: offset }]} onLayout={onLayout}>
+        <Pressable style={styles.backdrop} onPress={onClose} />
         <View style={[styles.sheet, { backgroundColor: t.bgElevated }]}>
           <ScrollView keyboardShouldPersistTaps="handled" style={{ maxHeight: 440 }}>
             <TextInput
@@ -217,8 +197,8 @@ export function TaskEditSheet({
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' },
-  sheetWrap: { position: 'absolute', left: 0, right: 0, bottom: 0 },
+  root: { flex: 1, justifyContent: 'flex-end' },
+  backdrop: { ...(StyleSheet.absoluteFill as object), backgroundColor: 'rgba(0,0,0,0.4)' },
   sheet: {
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,

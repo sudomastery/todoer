@@ -6,11 +6,16 @@ import {
   type DisplayPrefs,
   type GroupBy,
   type Label,
+  type LayoutMode,
   type Priority,
   type SortBy,
 } from '@todoer/shared';
 import { useTheme } from '../lib/theme';
 
+const LAYOUTS: { label: string; value: LayoutMode }[] = [
+  { label: 'List', value: 'list' },
+  { label: 'Board', value: 'board' },
+];
 const GROUPS: { label: string; value: GroupBy }[] = [
   { label: 'None', value: 'none' },
   { label: 'Project', value: 'project' },
@@ -103,6 +108,15 @@ export function DisplaySheet({
             )}
           </View>
           <ScrollView style={{ maxHeight: 420 }}>
+            <Text style={[styles.groupLabel, { color: t.fgFaint }]}>Layout</Text>
+            <View style={styles.chipRow}>
+              {LAYOUTS.map((l) => (
+                <Pressable key={l.value} onPress={() => update({ layout: l.value })} style={chip(prefs.layout === l.value)}>
+                  <Text style={chipText(prefs.layout === l.value)}>{l.label}</Text>
+                </Pressable>
+              ))}
+            </View>
+
             <Text style={[styles.groupLabel, { color: t.fgFaint }]}>Grouping</Text>
             <View style={styles.chipRow}>
               {groups.map((g) => (

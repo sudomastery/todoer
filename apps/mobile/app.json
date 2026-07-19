@@ -29,6 +29,12 @@
       "expo-status-bar",
       "expo-audio",
       [
+        "expo-notifications",
+        {
+          "color": "#dc4c3e"
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "image": "./assets/splash-icon.png",
