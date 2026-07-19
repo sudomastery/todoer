@@ -1,0 +1,20 @@
+{
+  "name": "@todoer/mcp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "MCP server exposing Todoer task management to AI assistants",
+  "main": "src/index.ts",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "@supabase/supabase-js": "^2.45.0",
+    "@todoer/shared": "*",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0"
+  }
+}

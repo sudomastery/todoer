@@ -6,6 +6,7 @@ import type {
   Project,
   Section,
   Task,
+  TaskComment,
   TaskWithLabels,
   UpdateTaskInput,
 } from './types';
@@ -244,6 +245,41 @@ export async function setTaskPriority(db: Client, id: string, priority: Priority
 }
 
 // ============================================================
+// Comments
+// ============================================================
+
+export async function fetchComments(db: Client, taskId: string): Promise<TaskComment[]> {
+  const { data, error } = await db
+    .from('task_comments')
+    .select('*')
+    .eq('task_id', taskId)
+    .order('created_at');
+  throwIf(error);
+  return (data ?? []) as TaskComment[];
+}
+
+export async function addComment(db: Client, taskId: string, content: string): Promise<TaskComment> {
+  const { data: auth } = await db.auth.getUser();
+  const { data, error } = await db
+    .from('task_comments')
+    .insert({ task_id: taskId, content, user_id: auth.user?.id })
+    .select()
+    .single();
+  throwIf(error);
+  return data as TaskComment;
+}
+
+export async function updateComment(db: Client, id: string, content: string): Promise<void> {
+  const { error } = await db.from('task_comments').update({ content }).eq('id', id);
+  throwIf(error);
+}
+
+export async function deleteComment(db: Client, id: string): Promise<void> {
+  const { error } = await db.from('task_comments').delete().eq('id', id);
+  throwIf(error);
+}
+
+// ============================================================
 // Auth helpers (username login)
 // ============================================================
 
@@ -283,12 +319,13 @@ export async function fetchCompletedSince(db: Client, sinceIso: string): Promise
 
 export interface TodoerExport {
   format: 'todoer-export';
-  version: 1;
+  version: 2;
   exported_at: string;
   projects: Project[];
   sections: Section[];
   labels: Label[];
   tasks: TaskWithLabels[];
+  comments: TaskComment[];
 }
 
 /** Everything the user owns, including completed tasks, as one JSON document. */
@@ -303,14 +340,20 @@ export async function buildExport(db: Client): Promise<TodoerExport> {
     .select('*, task_labels(label_id)')
     .order('created_at', { ascending: true });
   throwIf(error);
+  const { data: comments, error: cErr } = await db
+    .from('task_comments')
+    .select('*')
+    .order('created_at', { ascending: true });
+  throwIf(cErr);
   return {
     format: 'todoer-export',
-    version: 1,
+    version: 2,
     exported_at: new Date().toISOString(),
     projects,
     sections,
     labels,
     tasks: withLabelIds((data ?? []) as never),
+    comments: (comments ?? []) as TaskComment[],
   };
 }
 
