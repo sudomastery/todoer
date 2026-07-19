@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
-  KeyboardAvoidingView,
+  Keyboard,
   Modal,
   Platform,
   Pressable,
@@ -34,6 +34,22 @@ export function AddTaskSheet({
   const quickAdd = useQuickAdd();
   const { data: projects } = useProjects();
   const [text, setText] = useState('');
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  // KeyboardAvoidingView is unreliable inside a transparent Modal on Android,
+  // so track the keyboard height ourselves and pad the sheet up by that much.
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const show = Keyboard.addListener(showEvent, (e) =>
+      setKeyboardHeight(e.endCoordinates.height),
+    );
+    const hide = Keyboard.addListener(hideEvent, () => setKeyboardHeight(0));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
 
   const inbox = (projects ?? []).find((p) => p.is_inbox);
   const parsed = useMemo(() => parseQuickAdd(text), [text]);
@@ -52,12 +68,15 @@ export function AddTaskSheet({
   }
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent
+      statusBarTranslucent
+      onRequestClose={onClose}
+    >
       <Pressable style={styles.backdrop} onPress={onClose} />
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.sheetWrap}
-      >
+      <View style={[styles.sheetWrap, { paddingBottom: keyboardHeight }]}>
         <View style={[styles.sheet, { backgroundColor: t.bgElevated }]}>
           <TextInput
             autoFocus
@@ -127,7 +146,7 @@ export function AddTaskSheet({
             </Pressable>
           </View>
         </View>
-      </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 }

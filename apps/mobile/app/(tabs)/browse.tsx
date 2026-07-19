@@ -1,5 +1,15 @@
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import {
+  Alert,
+  Modal,
+  Pressable,
+  ScrollView,
+  Share,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { buildExport, colorHex, deleteAccount } from '@todoer/shared';
@@ -80,24 +90,45 @@ export default function BrowseScreen() {
 
   const regular = (projects ?? []).filter((p) => !p.is_inbox);
   const all = tasks ?? [];
+  const [addingProject, setAddingProject] = useState(false);
+  const [projectName, setProjectName] = useState('');
 
-  function addProject() {
-    Alert.prompt?.(
-      'Add project',
-      'Project name',
-      (name) => {
-        if (name?.trim()) createProject.mutate({ name: name.trim(), color: 'blue' });
-      },
-    ) ??
-      // Alert.prompt is iOS-only; Android gets a quick default project they can rename on web
-      createProject.mutate({ name: 'New project', color: 'blue' });
+  function submitProject() {
+    const name = projectName.trim();
+    if (!name) return;
+    createProject.mutate({ name, color: 'blue' });
+    setProjectName('');
+    setAddingProject(false);
   }
 
   return (
     <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 60 }}>
-      <View style={styles.sectionHead}>
+      <Pressable
+        onPress={() => router.push('/stats')}
+        style={({ pressed }) => [
+          styles.row,
+          { borderBottomColor: t.border },
+          pressed && { backgroundColor: t.bgPressed },
+        ]}
+      >
+        <Ionicons name="bar-chart-outline" size={18} color="#0d9488" />
+        <Text style={[styles.rowText, { color: t.fg }]}>Productivity</Text>
+      </Pressable>
+      <Pressable
+        onPress={() => router.push('/completed')}
+        style={({ pressed }) => [
+          styles.row,
+          { borderBottomColor: t.border },
+          pressed && { backgroundColor: t.bgPressed },
+        ]}
+      >
+        <Ionicons name="checkmark-circle-outline" size={18} color={t.fgSecondary} />
+        <Text style={[styles.rowText, { color: t.fg }]}>Completed</Text>
+      </Pressable>
+
+      <View style={[styles.sectionHead, { marginTop: 28 }]}>
         <Text style={[styles.sectionTitle, { color: t.fg }]}>My Projects</Text>
-        <Pressable onPress={addProject} hitSlop={8}>
+        <Pressable onPress={() => setAddingProject(true)} hitSlop={8}>
           <Ionicons name="add" size={22} color={t.fgSecondary} />
         </Pressable>
       </View>
@@ -187,6 +218,49 @@ export default function BrowseScreen() {
         <Text style={{ color: t.fgSecondary, fontSize: 14, fontWeight: '500' }}>Log out</Text>
       </Pressable>
 
+      <Modal
+        visible={addingProject}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setAddingProject(false)}
+      >
+        <Pressable style={styles.modalBackdrop} onPress={() => setAddingProject(false)} />
+        <View style={styles.modalCenter} pointerEvents="box-none">
+          <View style={[styles.modalCard, { backgroundColor: t.bgElevated }]}>
+            <Text style={[styles.sectionTitle, { color: t.fg, marginBottom: 10 }]}>
+              Add project
+            </Text>
+            <TextInput
+              autoFocus
+              value={projectName}
+              onChangeText={setProjectName}
+              onSubmitEditing={submitProject}
+              placeholder="Project name"
+              placeholderTextColor={t.fgFaint}
+              style={[styles.modalInput, { color: t.fg, borderColor: t.border }]}
+              returnKeyType="done"
+            />
+            <View style={styles.modalActions}>
+              <Pressable onPress={() => setAddingProject(false)} hitSlop={6}>
+                <Text style={{ color: t.fgSecondary, fontSize: 14 }}>Cancel</Text>
+              </Pressable>
+              <Pressable onPress={submitProject} hitSlop={6} disabled={!projectName.trim()}>
+                <Text
+                  style={{
+                    color: t.brand,
+                    fontSize: 14,
+                    fontWeight: '700',
+                    opacity: projectName.trim() ? 1 : 0.4,
+                  }}
+                >
+                  Add
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <Pressable
         onPress={() =>
           Alert.alert(
@@ -251,5 +325,33 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingVertical: 12,
     justifyContent: 'center',
+  },
+  modalBackdrop: {
+    ...(StyleSheet.absoluteFill as object),
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  modalCenter: {
+    ...(StyleSheet.absoluteFill as object),
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 32,
+  },
+  modalCard: {
+    alignSelf: 'stretch',
+    borderRadius: 14,
+    padding: 18,
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 15,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 24,
+    marginTop: 16,
   },
 });
