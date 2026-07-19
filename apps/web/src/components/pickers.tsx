@@ -5,20 +5,39 @@ import clsx from 'clsx';
 import {
   Armchair,
   CalendarDays,
+  ChevronLeft,
+  ChevronRight,
   CircleSlash,
+  Clock,
   Flag,
   Hash,
+  Repeat,
   Sun,
   Sunrise,
   Tag,
 } from 'lucide-react';
-import { addDays, format, nextSaturday, nextMonday } from 'date-fns';
+import {
+  addDays,
+  addMonths,
+  format,
+  isSameMonth,
+  nextSaturday,
+  nextMonday,
+  parseISO,
+  startOfMonth,
+} from 'date-fns';
 import * as chrono from 'chrono-node';
 import {
   colorHex,
+  describeRecurrence,
+  formatDue,
   formatDueDate,
+  monthGrid,
+  recurrenceOptions,
   PRIORITY_COLORS,
+  todayISO,
   toISODate,
+  WEEKDAY_LABELS,
   type Label,
   type Priority,
   type Project,
@@ -33,22 +52,42 @@ import { Chip, Popover, PopoverContent, PopoverTrigger } from '@/components/ui';
 export function DuePicker({
   value,
   onChange,
+  time,
+  onTimeChange,
   children,
 }: {
   value: string | null;
   onChange: (date: string | null) => void;
+  /** 'HH:MM:SS'. Omit the pair to hide the time row. */
+  time?: string | null;
+  onTimeChange?: (time: string | null) => void;
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const [text, setText] = useState('');
+  // Opens on the month of the date already set, so editing a task in December
+  // does not start the user back at today.
+  const [month, setMonth] = useState(() =>
+    startOfMonth(value ? parseISO(value) : new Date()),
+  );
 
   const today = new Date();
   const parsed = text ? chrono.parseDate(text, today, { forwardDate: true }) : null;
 
-  function pick(date: string | null) {
+  function pick(date: string | null, keepOpen = false) {
     onChange(date);
-    setOpen(false);
+    // Choosing a day from the grid leaves the popover up when there is a time
+    // row below it, otherwise the time control is unreachable in one pass.
+    if (!keepOpen) setOpen(false);
     setText('');
+  }
+
+  // Reset the visible month when the popover closes rather than as it opens.
+  // Setting state during the open transition re-renders the content while
+  // Radix is measuring it, which leaves the popper unpositioned.
+  function handleOpenChange(next: boolean) {
+    setOpen(next);
+    if (!next) setMonth(startOfMonth(value ? parseISO(value) : new Date()));
   }
 
   const quick = [
@@ -70,8 +109,10 @@ export function DuePicker({
     },
   ];
 
+  const todayIso = todayISO();
+
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>{children}</PopoverTrigger>
       <PopoverContent className="w-64 p-0">
         <div className="border-b border-border-default p-2">
@@ -108,19 +149,179 @@ export function DuePicker({
               <span className="text-xs text-fg-faint">{formatDueDate(q.date)}</span>
             </button>
           ))}
-          {value && (
+        </div>
+
+        <div className="border-t border-border-default p-2">
+          <div className="mb-1 flex items-center justify-between">
             <button
               type="button"
-              onClick={() => pick(null)}
+              aria-label="Previous month"
+              onClick={() => setMonth((m) => addMonths(m, -1))}
+              className="rounded p-1 text-fg-secondary hover:bg-bg-hover"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <span className="text-xs font-semibold">{format(month, 'MMMM yyyy')}</span>
+            <button
+              type="button"
+              aria-label="Next month"
+              onClick={() => setMonth((m) => addMonths(m, 1))}
+              className="rounded p-1 text-fg-secondary hover:bg-bg-hover"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-7 gap-0.5 text-center">
+            {WEEKDAY_LABELS.map((d) => (
+              <div key={d} className="py-1 text-[10px] font-semibold text-fg-faint">
+                {d.slice(0, 1)}
+              </div>
+            ))}
+            {monthGrid(month)
+              .flat()
+              .map((day) => {
+                const iso = toISODate(day);
+                const selected = value === iso;
+                return (
+                  <button
+                    key={iso}
+                    type="button"
+                    aria-label={format(day, 'EEEE MMMM d yyyy')}
+                    aria-pressed={selected}
+                    onClick={() => pick(iso, !!onTimeChange)}
+                    className={clsx(
+                      'rounded py-1 text-xs hover:bg-bg-hover',
+                      !isSameMonth(day, month) && 'text-fg-faint',
+                      iso === todayIso && !selected && 'font-bold text-brand',
+                      selected && 'bg-brand font-semibold text-white hover:bg-brand',
+                    )}
+                  >
+                    {format(day, 'd')}
+                  </button>
+                );
+              })}
+          </div>
+        </div>
+
+        {onTimeChange && (
+          <div className="flex items-center gap-2 border-t border-border-default px-2.5 py-2">
+            <Clock className="h-4 w-4 shrink-0 text-fg-secondary" />
+            <input
+              type="time"
+              aria-label="Due time"
+              // A time with no day would never fire, so this stays disabled
+              // until a date is chosen rather than quietly inventing one.
+              disabled={!value}
+              title={value ? undefined : 'Pick a date first'}
+              value={time ? time.slice(0, 5) : ''}
+              onChange={(e) => onTimeChange(e.target.value ? `${e.target.value}:00` : null)}
+              className="flex-1 rounded-md border border-border-strong bg-bg px-2 py-1 text-sm outline-none focus:border-fg-faint disabled:opacity-50"
+            />
+            {time && (
+              <button
+                type="button"
+                onClick={() => onTimeChange(null)}
+                className="rounded px-1.5 py-1 text-xs text-fg-secondary hover:bg-bg-hover"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        )}
+
+        {value && (
+          <div className="border-t border-border-default p-1">
+            <button
+              type="button"
+              onClick={() => {
+                onTimeChange?.(null);
+                pick(null);
+              }}
               className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm text-fg-secondary hover:bg-bg-hover"
             >
               <CircleSlash className="h-4 w-4" />
               No date
             </button>
-          )}
-        </div>
+          </div>
+        )}
       </PopoverContent>
     </Popover>
+  );
+}
+
+// ============================================================
+// Repeat picker
+// ============================================================
+
+export function RepeatPicker({
+  value,
+  dueDate,
+  onChange,
+  children,
+}: {
+  value: string | null;
+  dueDate: string | null;
+  onChange: (rule: string | null) => void;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  const options = recurrenceOptions(dueDate);
+
+  function pick(rule: string | null) {
+    onChange(rule);
+    setOpen(false);
+  }
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>{children}</PopoverTrigger>
+      <PopoverContent className="w-48">
+        {options.map((o) => (
+          <button
+            key={o.label}
+            type="button"
+            onClick={() => pick(o.rule)}
+            className={clsx(
+              'flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm hover:bg-bg-hover',
+              value === o.rule && 'bg-bg-hover',
+            )}
+          >
+            <Repeat className="h-4 w-4 text-fg-secondary" />
+            <span className="flex-1 text-left">{o.label}</span>
+          </button>
+        ))}
+        {value && (
+          <button
+            type="button"
+            onClick={() => pick(null)}
+            className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm text-fg-secondary hover:bg-bg-hover"
+          >
+            <CircleSlash className="h-4 w-4" />
+            Never repeat
+          </button>
+        )}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+export function RepeatChip({
+  value,
+  dueDate,
+  onChange,
+}: {
+  value: string | null;
+  dueDate: string | null;
+  onChange: (r: string | null) => void;
+}) {
+  return (
+    <RepeatPicker value={value} dueDate={dueDate} onChange={onChange}>
+      <Chip active={!!value}>
+        <Repeat className="h-3.5 w-3.5" />
+        {value ? describeRecurrence(value) : 'Repeat'}
+      </Chip>
+    </RepeatPicker>
   );
 }
 
@@ -277,12 +478,22 @@ export function ProjectPicker({
 // Chips used by editors
 // ============================================================
 
-export function DueChip({ value, onChange }: { value: string | null; onChange: (d: string | null) => void }) {
+export function DueChip({
+  value,
+  onChange,
+  time,
+  onTimeChange,
+}: {
+  value: string | null;
+  onChange: (d: string | null) => void;
+  time?: string | null;
+  onTimeChange?: (t: string | null) => void;
+}) {
   return (
-    <DuePicker value={value} onChange={onChange}>
+    <DuePicker value={value} onChange={onChange} time={time} onTimeChange={onTimeChange}>
       <Chip active={!!value}>
         <CalendarDays className="h-3.5 w-3.5" />
-        {value ? formatDueDate(value) : 'Due date'}
+        {value ? formatDue(value, time ?? null) : 'Due date'}
       </Chip>
     </DuePicker>
   );
