@@ -5,11 +5,12 @@ import { useActiveTasks, useLabels, useProjects } from '../../lib/hooks';
 import { TaskListView, type TaskSection } from '../../components/TaskListView';
 import { AddTaskSheet } from '../../components/AddTaskSheet';
 import { Fab } from '../../components/Fab';
+import { TaskListSkeleton } from '../../components/Skeleton';
 import { useTheme } from '../../lib/theme';
 
 export default function UpcomingScreen() {
   const t = useTheme();
-  const { data: tasks } = useActiveTasks();
+  const { data: tasks, isLoading } = useActiveTasks();
   const { data: projects } = useProjects();
   const { data: labels } = useLabels();
   const [adding, setAdding] = useState(false);
@@ -33,14 +34,18 @@ export default function UpcomingScreen() {
 
   return (
     <View style={{ flex: 1 }}>
-      <TaskListView
-        sections={sections}
-        allTasks={all}
-        projects={projects}
-        labels={labels}
-        showProject
-        emptyMessage="Nothing scheduled. Add a task with a due date."
-      />
+      {isLoading ? (
+        <TaskListSkeleton />
+      ) : (
+        <TaskListView
+          sections={sections}
+          allTasks={all}
+          projects={projects}
+          labels={labels}
+          showProject
+          emptyMessage="Nothing scheduled. Add a task with a due date."
+        />
+      )}
       <Fab onPress={() => setAdding(true)} />
       <AddTaskSheet visible={adding} onClose={() => setAdding(false)} />
     </View>

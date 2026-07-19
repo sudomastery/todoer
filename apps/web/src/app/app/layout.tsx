@@ -1,18 +1,10 @@
-import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
 import { AppShell } from '@/components/app-shell';
 
-export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) redirect('/login');
-
-  return (
-    <AppShell userEmail={user.email ?? ''} userName={(user.user_metadata?.full_name as string) ?? ''}>
-      {children}
-    </AppShell>
-  );
+/**
+ * No server-side auth call here on purpose: the middleware already gates /app,
+ * and keeping this segment static means moving between views is a client-side
+ * transition instead of a round trip to Supabase.
+ */
+export default function AppLayout({ children }: { children: React.ReactNode }) {
+  return <AppShell>{children}</AppShell>;
 }

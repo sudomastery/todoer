@@ -6,11 +6,13 @@ import { useDisplayPrefs } from '../../lib/display';
 import { DisplayButton, DisplaySheet } from '../../components/DisplaySheet';
 import { TaskListView, type TaskSection } from '../../components/TaskListView';
 import { BoardView } from '../../components/BoardView';
+import { CalendarView } from '../../components/CalendarView';
 import { AddTaskSheet } from '../../components/AddTaskSheet';
 import { Fab } from '../../components/Fab';
+import { TaskListSkeleton } from '../../components/Skeleton';
 
 export default function InboxScreen() {
-  const { data: tasks } = useActiveTasks();
+  const { data: tasks, isLoading } = useActiveTasks();
   const { data: projects } = useProjects();
   const { data: labels } = useLabels();
   const [adding, setAdding] = useState(false);
@@ -33,7 +35,11 @@ export default function InboxScreen() {
   return (
     <View style={{ flex: 1 }}>
       <DisplayButton prefs={prefs} onPress={() => setDisplayOpen(true)} />
-      {prefs.layout === 'board' ? (
+      {isLoading ? (
+        <TaskListSkeleton />
+      ) : prefs.layout === 'calendar' ? (
+        <CalendarView tasks={filtered} projects={projects} labels={labels} showProject={false} />
+      ) : prefs.layout === 'board' ? (
         <BoardView
           sections={sections}
           allTasks={all}

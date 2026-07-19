@@ -3,6 +3,7 @@
 import { format, parseISO } from 'date-fns';
 import { useCompletedTasks } from '@/lib/hooks';
 import { TaskItem } from '@/components/task-item';
+import { TaskListSkeleton } from '@/components/loading';
 
 export default function CompletedPage() {
   const { data: tasks, isLoading } = useCompletedTasks();
@@ -19,7 +20,7 @@ export default function CompletedPage() {
       <h1 className="text-2xl font-bold">Completed</h1>
 
       {isLoading ? (
-        <p className="py-8 text-sm text-fg-faint">Loading…</p>
+        <TaskListSkeleton className="py-2" />
       ) : all.length === 0 ? (
         <p className="py-8 text-sm text-fg-faint">Nothing completed yet. Go check something off!</p>
       ) : (

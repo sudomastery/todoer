@@ -3,6 +3,7 @@
 import { formatDayHeading, isOverdue, upcomingDays } from '@todoer/shared';
 import { useActiveTasks } from '@/lib/hooks';
 import { AddTaskButton, TaskList } from '@/components/task-list';
+import { TaskListSkeleton } from '@/components/loading';
 
 const DAYS_SHOWN = 14;
 
@@ -20,7 +21,7 @@ export default function UpcomingPage() {
       <h1 className="text-2xl font-bold">Upcoming</h1>
 
       {isLoading ? (
-        <p className="py-8 text-sm text-fg-faint">Loading…</p>
+        <TaskListSkeleton className="py-2" />
       ) : (
         <>
           {overdue.length > 0 && (

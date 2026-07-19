@@ -17,6 +17,7 @@ import { AddTaskButton, TaskList } from '@/components/task-list';
 import { TaskView } from '@/components/task-view';
 import { DisplayMenu } from '@/components/display-menu';
 import { ProjectDialog } from '@/components/project-dialog';
+import { TaskListSkeleton } from '@/components/loading';
 import {
   Dropdown,
   DropdownContent,
@@ -104,7 +105,7 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
   const project = (projects ?? []).find((p) => p.id === id);
   const projectSections = (sections ?? []).filter((s) => s.project_id === id);
 
-  if (isLoading) return <p className="py-8 text-sm text-fg-faint">Loading…</p>;
+  if (isLoading) return <TaskListSkeleton className="py-2" />;
   if (!project) {
     return (
       <div className="py-8">

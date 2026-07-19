@@ -5,6 +5,7 @@ import { useDisplayPrefs } from '@/lib/display';
 import { AddTaskButton, TaskList } from '@/components/task-list';
 import { TaskView } from '@/components/task-view';
 import { DisplayMenu } from '@/components/display-menu';
+import { TaskListSkeleton } from '@/components/loading';
 
 export default function InboxPage() {
   const { data: tasks, isLoading } = useActiveTasks();
@@ -24,7 +25,7 @@ export default function InboxPage() {
         <DisplayMenu state={display} hideGroupProject />
       </div>
       {isLoading || !inbox ? (
-        <p className="py-8 text-sm text-fg-faint">Loading…</p>
+        <TaskListSkeleton className="py-2" />
       ) : (
         <section className="mt-4">
           <TaskView

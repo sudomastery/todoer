@@ -3,6 +3,7 @@
 import { useMemo } from 'react';
 import { format, subDays } from 'date-fns';
 import { BRAND, colorHex, todayISO, type TaskWithLabels } from '@todoer/shared';
+import { RowSkeleton } from '@/components/loading';
 import { useActiveTasks, useCompletedSince, useProjects } from '@/lib/hooks';
 
 const DAYS_SHOWN = 14;
@@ -82,7 +83,7 @@ export default function StatsPage() {
       .sort((a, b) => b.rate - a.rate || b.done - a.done);
   }, [projects, done, activeTasks]);
 
-  if (isLoading) return <p className="py-8 text-sm text-fg-faint">Loading…</p>;
+  if (isLoading) return <RowSkeleton rows={4} />;
 
   return (
     <div>

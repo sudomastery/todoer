@@ -14,8 +14,10 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import {
   buildExport,
+  COLOR_KEYS,
   colorHex,
   deleteAccount,
+  PALETTE,
   DEFAULT_NOTIFICATION_PREFS,
   LEAD_OPTIONS,
   type NotificationPrefs,
@@ -28,12 +30,17 @@ import {
 } from '../../lib/notifications';
 import {
   useActiveTasks,
+  useCreateLabel,
   useCreateProject,
+  useDeleteLabel,
   useDeleteProject,
   useLabels,
+  useProfile,
   useProjects,
+  useUpdateLabel,
   useUpdateProject,
 } from '../../lib/hooks';
+import { NamePrompt } from '../../components/NamePrompt';
 import {
   COMPLETION_SOUNDS,
   getSoundPref,
@@ -294,33 +301,69 @@ export default function BrowseScreen() {
   const createProject = useCreateProject();
   const updateProject = useUpdateProject();
   const deleteProject = useDeleteProject();
+  const createLabel = useCreateLabel();
+  const updateLabel = useUpdateLabel();
+  const deleteLabel = useDeleteLabel();
 
   const regular = (projects ?? []).filter((p) => !p.is_inbox);
   const all = tasks ?? [];
   const [addingProject, setAddingProject] = useState(false);
   const [renamingProjectId, setRenamingProjectId] = useState<string | null>(null);
   const [projectName, setProjectName] = useState('');
+  const [projectColor, setProjectColor] = useState('blue');
+  const [projectFavorite, setProjectFavorite] = useState(false);
+  const [labelPrompt, setLabelPrompt] = useState<{ id?: string; name: string } | null>(null);
+  const [dangerRevealed, setDangerRevealed] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const { data: profile } = useProfile();
+  const profileName = profile?.username || profile?.full_name || 'DELETE';
 
   function submitProject() {
     const name = projectName.trim();
     if (!name) return;
+    const patch = { name, color: projectColor, is_favorite: projectFavorite };
     if (renamingProjectId) {
-      updateProject.mutate({ id: renamingProjectId, patch: { name } });
+      updateProject.mutate({ id: renamingProjectId, patch });
     } else {
-      createProject.mutate({ name, color: 'blue' });
+      createProject.mutate(patch);
     }
+    closeProjectDialog();
+  }
+
+  function closeProjectDialog() {
     setProjectName('');
+    setProjectColor('blue');
+    setProjectFavorite(false);
     setAddingProject(false);
     setRenamingProjectId(null);
+  }
+
+  function labelActions(l: { id: string; name: string }) {
+    Alert.alert(l.name, undefined, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Rename', onPress: () => setLabelPrompt({ id: l.id, name: l.name }) },
+      {
+        text: 'Delete label',
+        style: 'destructive',
+        onPress: () =>
+          Alert.alert('Delete label', `Delete "${l.name}"? Tasks keep their other labels.`, [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Delete', style: 'destructive', onPress: () => deleteLabel.mutate(l.id) },
+          ]),
+      },
+    ]);
   }
 
   function projectActions(p: (typeof regular)[number]) {
     Alert.alert(p.name, undefined, [
       { text: 'Cancel', style: 'cancel' },
       {
-        text: 'Rename',
+        text: 'Edit',
         onPress: () => {
           setProjectName(p.name);
+          setProjectColor(p.color);
+          setProjectFavorite(p.is_favorite);
           setRenamingProjectId(p.id);
           setAddingProject(true);
         },
@@ -377,6 +420,17 @@ export default function BrowseScreen() {
         <Text style={[styles.rowText, { color: t.fg }]}>Calendar</Text>
       </Pressable>
       <Pressable
+        onPress={() => router.push('/assistant')}
+        style={({ pressed }) => [
+          styles.row,
+          { borderBottomColor: t.border },
+          pressed && { backgroundColor: t.bgPressed },
+        ]}
+      >
+        <Ionicons name="hardware-chip-outline" size={18} color="#2563eb" />
+        <Text style={[styles.rowText, { color: t.fg }]}>AI assistant</Text>
+      </Pressable>
+      <Pressable
         onPress={() => router.push('/completed')}
         style={({ pressed }) => [
           styles.row,
@@ -423,6 +477,9 @@ export default function BrowseScreen() {
 
       <View style={[styles.sectionHead, { marginTop: 28 }]}>
         <Text style={[styles.sectionTitle, { color: t.fg }]}>Labels</Text>
+        <Pressable onPress={() => setLabelPrompt({ name: '' })} hitSlop={8}>
+          <Ionicons name="add" size={22} color={t.fgSecondary} />
+        </Pressable>
       </View>
       {(labels ?? []).map((l) => {
         const count = all.filter((task) => task.label_ids.includes(l.id)).length;
@@ -430,6 +487,7 @@ export default function BrowseScreen() {
           <Pressable
             key={l.id}
             onPress={() => router.push(`/label/${l.id}`)}
+            onLongPress={() => labelActions(l)}
             style={({ pressed }) => [
               styles.row,
               { borderBottomColor: t.border },
@@ -502,24 +560,14 @@ export default function BrowseScreen() {
         visible={addingProject}
         animationType="fade"
         transparent
-        onRequestClose={() => {
-          setAddingProject(false);
-          setRenamingProjectId(null);
-          setProjectName('');
-        }}
+        statusBarTranslucent
+        onRequestClose={closeProjectDialog}
       >
-        <Pressable
-          style={styles.modalBackdrop}
-          onPress={() => {
-            setAddingProject(false);
-            setRenamingProjectId(null);
-            setProjectName('');
-          }}
-        />
+        <Pressable style={styles.modalBackdrop} onPress={closeProjectDialog} />
         <View style={styles.modalCenter} pointerEvents="box-none">
           <View style={[styles.modalCard, { backgroundColor: t.bgElevated }]}>
             <Text style={[styles.sectionTitle, { color: t.fg, marginBottom: 10 }]}>
-              {renamingProjectId ? 'Rename project' : 'Add project'}
+              {renamingProjectId ? 'Edit project' : 'Add project'}
             </Text>
             <TextInput
               autoFocus
@@ -531,15 +579,39 @@ export default function BrowseScreen() {
               style={[styles.modalInput, { color: t.fg, borderColor: t.border }]}
               returnKeyType="done"
             />
+
+            <Text style={[styles.settingLabel, { color: t.fgSecondary }]}>Color</Text>
+            <View style={styles.swatchRow}>
+              {COLOR_KEYS.map((key) => (
+                <Pressable
+                  key={key}
+                  onPress={() => setProjectColor(key)}
+                  accessibilityLabel={PALETTE[key].label}
+                  style={[
+                    styles.swatch,
+                    { backgroundColor: colorHex(key) },
+                    projectColor === key && { borderWidth: 2, borderColor: t.fg },
+                  ]}
+                />
+              ))}
+            </View>
+
+            <Pressable
+              onPress={() => setProjectFavorite((v) => !v)}
+              style={styles.favoriteRow}
+              accessibilityRole="switch"
+              accessibilityState={{ checked: projectFavorite }}
+            >
+              <Ionicons
+                name={projectFavorite ? 'star' : 'star-outline'}
+                size={18}
+                color={projectFavorite ? '#eb8909' : t.fgSecondary}
+              />
+              <Text style={{ color: t.fg, fontSize: 14 }}>Add to favorites</Text>
+            </Pressable>
+
             <View style={styles.modalActions}>
-              <Pressable
-                onPress={() => {
-                  setAddingProject(false);
-                  setRenamingProjectId(null);
-                  setProjectName('');
-                }}
-                hitSlop={6}
-              >
+              <Pressable onPress={closeProjectDialog} hitSlop={6}>
                 <Text style={{ color: t.fgSecondary, fontSize: 14 }}>Cancel</Text>
               </Pressable>
               <Pressable onPress={submitProject} hitSlop={6} disabled={!projectName.trim()}>
@@ -559,44 +631,103 @@ export default function BrowseScreen() {
         </View>
       </Modal>
 
-      <CollapsibleSection title="Danger zone" color="#d1453b">
-      <View style={[styles.dangerZone, { borderColor: '#d1453b' }]}>
-        <Text style={{ color: t.fgSecondary, fontSize: 12, marginBottom: 10, lineHeight: 17 }}>
-          Deleting your account permanently erases every project, task, label, and comment.
-          This cannot be undone.
-        </Text>
-        <Pressable
-          onPress={() =>
-            Alert.alert(
-              'Delete account',
-              'This permanently erases your account and every project, task, and label. It cannot be undone.',
-              [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                  text: 'Delete forever',
-                  style: 'destructive',
-                  onPress: async () => {
-                    try {
-                      await deleteAccount(supabase);
-                      await supabase.auth.signOut();
-                    } catch (e) {
-                      Alert.alert('Could not delete account', e instanceof Error ? e.message : 'Unknown error');
-                    }
-                  },
-                },
-              ],
-            )
+      <NamePrompt
+        visible={labelPrompt !== null}
+        title={labelPrompt?.id ? 'Rename label' : 'Add label'}
+        initial={labelPrompt?.name ?? ''}
+        placeholder="Label name"
+        confirmLabel={labelPrompt?.id ? 'Save' : 'Add'}
+        onCancel={() => setLabelPrompt(null)}
+        onSubmit={(name) => {
+          if (labelPrompt?.id) {
+            updateLabel.mutate({ id: labelPrompt.id, patch: { name } });
+          } else {
+            createLabel.mutate({ name });
           }
-          style={({ pressed }) => [
-            styles.dangerBtn,
-            { borderColor: '#d1453b' },
-            pressed && { backgroundColor: 'rgba(209,69,59,0.08)' },
-          ]}
-        >
-          <Ionicons name="trash-outline" size={16} color="#d1453b" />
-          <Text style={{ color: '#d1453b', fontSize: 14, fontWeight: '600' }}>Delete account</Text>
-        </Pressable>
-      </View>
+          setLabelPrompt(null);
+        }}
+      />
+
+      <CollapsibleSection title="Danger zone" color="#d1453b">
+        <View style={[styles.dangerZone, { borderColor: '#d1453b' }]}>
+          {!dangerRevealed ? (
+            <>
+              <Text style={{ color: t.fgSecondary, fontSize: 12, marginBottom: 12, lineHeight: 17 }}>
+                The actions here permanently destroy data and cannot be undone. Export a copy of
+                your data first if you might want it later.
+              </Text>
+              <Pressable
+                onPress={() => setDangerRevealed(true)}
+                style={({ pressed }) => [
+                  styles.dangerBtn,
+                  { borderColor: '#d1453b' },
+                  pressed && { backgroundColor: 'rgba(209,69,59,0.08)' },
+                ]}
+              >
+                <Text style={{ color: '#d1453b', fontSize: 14, fontWeight: '600' }}>
+                  I understand, show options
+                </Text>
+              </Pressable>
+            </>
+          ) : (
+            <>
+              <Text style={{ color: t.fg, fontSize: 14, fontWeight: '700', marginBottom: 6 }}>
+                Delete account
+              </Text>
+              <Text style={{ color: t.fgSecondary, fontSize: 12, marginBottom: 10, lineHeight: 17 }}>
+                Erases your account and every project, task, label, and comment. To confirm, type{' '}
+                <Text style={{ color: t.fg, fontWeight: '700' }}>{profileName}</Text> below.
+              </Text>
+              <TextInput
+                value={deleteConfirm}
+                onChangeText={setDeleteConfirm}
+                placeholder={profileName}
+                placeholderTextColor={t.fgFaint}
+                accessibilityLabel="Type your name to confirm deletion"
+                style={[styles.modalInput, { color: t.fg, borderColor: t.border, marginBottom: 10 }]}
+              />
+              <Pressable
+                disabled={deleteConfirm !== profileName || deleting}
+                onPress={() =>
+                  Alert.alert('Delete account', 'This cannot be undone. Continue?', [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'Delete forever',
+                      style: 'destructive',
+                      onPress: async () => {
+                        setDeleting(true);
+                        try {
+                          await deleteAccount(supabase);
+                          await supabase.auth.signOut();
+                        } catch (e) {
+                          setDeleting(false);
+                          Alert.alert(
+                            'Could not delete account',
+                            e instanceof Error ? e.message : 'Unknown error',
+                          );
+                        }
+                      },
+                    },
+                  ])
+                }
+                style={({ pressed }) => [
+                  styles.dangerBtn,
+                  {
+                    backgroundColor: '#d1453b',
+                    borderColor: '#d1453b',
+                    opacity: deleteConfirm === profileName && !deleting ? 1 : 0.4,
+                  },
+                  pressed && { opacity: 0.8 },
+                ]}
+              >
+                <Ionicons name="trash-outline" size={16} color="#fff" />
+                <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>
+                  Delete my account forever
+                </Text>
+              </Pressable>
+            </>
+          )}
+        </View>
       </CollapsibleSection>
     </ScrollView>
   );
@@ -696,4 +827,7 @@ const styles = StyleSheet.create({
     gap: 24,
     marginTop: 16,
   },
+  swatchRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingVertical: 4 },
+  swatch: { width: 24, height: 24, borderRadius: 12 },
+  favoriteRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 12 },
 });

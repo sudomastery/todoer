@@ -12,6 +12,7 @@ import {
   BarChart2,
   CheckCircle2,
   ChevronDown,
+  AlertTriangle,
   Bell,
   Download,
   ChevronRight,
@@ -32,7 +33,7 @@ import {
   Tag,
   Trash2,
 } from 'lucide-react';
-import { buildExport, colorHex, deleteAccount, isOverdue, isToday, todayISO, type Project } from '@todoer/shared';
+import { buildExport, colorHex, isOverdue, isToday, todayISO, type Project } from '@todoer/shared';
 import {
   useActiveTasks,
   useDeleteProject,
@@ -53,6 +54,7 @@ import { createClient } from '@/lib/supabase/client';
 import { SoundSettingsDialog } from '@/components/sound-settings';
 import { McpSettingsDialog } from '@/components/mcp-settings';
 import { NotificationSettingsDialog } from '@/components/notification-settings';
+import { DangerZoneDialog } from '@/components/danger-zone';
 import { ThemeSettingsDialog } from '@/components/theme-settings';
 
 function NavLink({
@@ -188,6 +190,7 @@ export function Sidebar({
   const [mcpOpen, setMcpOpen] = useState(false);
   const [themeOpen, setThemeOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [dangerOpen, setDangerOpen] = useState(false);
 
   if (!open) return null;
 
@@ -218,23 +221,6 @@ export function Sidebar({
     a.download = `todoer-export-${todayISO()}.json`;
     a.click();
     URL.revokeObjectURL(url);
-  }
-
-  async function removeAccount() {
-    const ok = confirm(
-      'Delete your account? This permanently erases every project, task, and label. This cannot be undone. Consider using Export data first.',
-    );
-    if (!ok) return;
-    const supabase = createClient();
-    try {
-      await deleteAccount(supabase);
-    } catch (e) {
-      alert(`Could not delete the account: ${e instanceof Error ? e.message : 'unknown error'}`);
-      return;
-    }
-    await supabase.auth.signOut();
-    router.push('/');
-    router.refresh();
   }
 
   return (
@@ -290,8 +276,8 @@ export function Sidebar({
             <DropdownItem onSelect={logout}>
               <LogOut className="h-4 w-4" /> Log out
             </DropdownItem>
-            <DropdownItem danger onSelect={removeAccount}>
-              <Trash2 className="h-4 w-4" /> Delete account
+            <DropdownItem danger onSelect={() => setDangerOpen(true)}>
+              <AlertTriangle className="h-4 w-4" /> Danger zone
             </DropdownItem>
           </DropdownContent>
         </Dropdown>
@@ -303,6 +289,7 @@ export function Sidebar({
       <McpSettingsDialog open={mcpOpen} onOpenChange={setMcpOpen} login={userEmail} />
       <ThemeSettingsDialog open={themeOpen} onOpenChange={setThemeOpen} />
       <NotificationSettingsDialog open={notificationsOpen} onOpenChange={setNotificationsOpen} />
+      <DangerZoneDialog open={dangerOpen} onOpenChange={setDangerOpen} userName={userName} />
 
       <div className="px-3">
         <button

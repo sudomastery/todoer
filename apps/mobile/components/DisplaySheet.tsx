@@ -15,6 +15,7 @@ import { useTheme } from '../lib/theme';
 const LAYOUTS: { label: string; value: LayoutMode }[] = [
   { label: 'List', value: 'list' },
   { label: 'Board', value: 'board' },
+  { label: 'Calendar', value: 'calendar' },
 ];
 const GROUPS: { label: string; value: GroupBy }[] = [
   { label: 'None', value: 'none' },

@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { PanelLeft } from 'lucide-react';
 import { useActiveTasks, useRealtimeSync } from '@/lib/hooks';
 import { runNotificationTick } from '@/lib/notifications';
+import { useUser } from '@/lib/use-user';
 import { Sidebar } from '@/components/sidebar';
 import { QuickAddDialog } from '@/components/quick-add-dialog';
 import { SearchDialog } from '@/components/search-dialog';
@@ -33,15 +34,8 @@ function useNotificationTicker() {
   }, [tasks]);
 }
 
-function ShellInner({
-  children,
-  userEmail,
-  userName,
-}: {
-  children: React.ReactNode;
-  userEmail: string;
-  userName: string;
-}) {
+function ShellInner({ children }: { children: React.ReactNode }) {
+  const { email: userEmail, name: userName } = useUser();
   useRealtimeSync();
   useNotificationTicker();
 
@@ -103,11 +97,7 @@ function ShellInner({
   );
 }
 
-export function AppShell(props: {
-  children: React.ReactNode;
-  userEmail: string;
-  userName: string;
-}) {
+export function AppShell(props: { children: React.ReactNode }) {
   const [queryClient] = useState(
     () =>
       new QueryClient({

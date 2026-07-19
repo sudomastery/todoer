@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { MoreHorizontal, Pencil, Plus, Tag, Trash2 } from 'lucide-react';
 import { colorHex } from '@todoer/shared';
 import { useActiveTasks, useCreateLabel, useDeleteLabel, useLabels, useUpdateLabel } from '@/lib/hooks';
+import { RowSkeleton } from '@/components/loading';
 import {
   Dropdown,
   DropdownContent,
@@ -37,7 +38,7 @@ export default function LabelsPage() {
       <div className="mt-6">
         <h2 className="border-b border-border-default pb-1.5 text-sm font-semibold">Labels</h2>
         {isLoading ? (
-          <p className="py-6 text-sm text-fg-faint">Loading…</p>
+          <RowSkeleton />
         ) : (labels ?? []).length === 0 ? (
           <p className="py-6 text-sm text-fg-faint">
             No labels yet. Add one here or type @name when adding a task.

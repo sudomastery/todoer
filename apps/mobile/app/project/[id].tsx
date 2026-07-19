@@ -1,16 +1,29 @@
 import { useState } from 'react';
-import { View } from 'react-native';
+import { Alert, Pressable, View } from 'react-native';
 import { Stack, useLocalSearchParams } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { filterTasks, groupTasks } from '@todoer/shared';
-import { useActiveTasks, useLabels, useProjects, useSections } from '../../lib/hooks';
+import {
+  useActiveTasks,
+  useCreateSection,
+  useDeleteSection,
+  useLabels,
+  useProjects,
+  useSections,
+  useUpdateSection,
+} from '../../lib/hooks';
 import { useDisplayPrefs } from '../../lib/display';
 import { DisplayButton, DisplaySheet } from '../../components/DisplaySheet';
 import { TaskListView, type TaskSection } from '../../components/TaskListView';
 import { BoardView } from '../../components/BoardView';
+import { CalendarView } from '../../components/CalendarView';
 import { AddTaskSheet } from '../../components/AddTaskSheet';
 import { Fab } from '../../components/Fab';
+import { NamePrompt } from '../../components/NamePrompt';
+import { useTheme } from '../../lib/theme';
 
 export default function ProjectScreen() {
+  const t = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: tasks } = useActiveTasks();
   const { data: projects } = useProjects();
@@ -18,7 +31,31 @@ export default function ProjectScreen() {
   const { data: labels } = useLabels();
   const [adding, setAdding] = useState(false);
   const [displayOpen, setDisplayOpen] = useState(false);
+  const [sectionPrompt, setSectionPrompt] = useState<{ id?: string; name: string } | null>(null);
   const { prefs, update, reset } = useDisplayPrefs(`project.${id}`);
+  const createSection = useCreateSection();
+  const updateSection = useUpdateSection();
+  const deleteSection = useDeleteSection();
+
+  function sectionActions(sectionId: string, name: string) {
+    Alert.alert(name, undefined, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Rename', onPress: () => setSectionPrompt({ id: sectionId, name }) },
+      {
+        text: 'Delete section',
+        style: 'destructive',
+        onPress: () =>
+          Alert.alert('Delete section', `Delete "${name}" and its tasks?`, [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Delete',
+              style: 'destructive',
+              onPress: () => deleteSection.mutate(sectionId),
+            },
+          ]),
+      },
+    ]);
+  }
 
   const project = (projects ?? []).find((p) => p.id === id);
   const all = tasks ?? [];
@@ -32,6 +69,7 @@ export default function ProjectScreen() {
           ...projectSections.map((s) => ({
             title: s.name,
             data: projectTasks.filter((t) => t.section_id === s.id),
+            sectionId: s.id,
           })),
         ]
       : groupTasks(projectTasks, prefs.groupBy, {
@@ -41,9 +79,20 @@ export default function ProjectScreen() {
 
   return (
     <View style={{ flex: 1 }}>
-      <Stack.Screen options={{ title: project?.name ?? 'Project' }} />
+      <Stack.Screen
+        options={{
+          title: project?.name ?? 'Project',
+          headerRight: () => (
+            <Pressable onPress={() => setSectionPrompt({ name: '' })} hitSlop={10}>
+              <Ionicons name="add-circle-outline" size={22} color={t.fgSecondary} />
+            </Pressable>
+          ),
+        }}
+      />
       <DisplayButton prefs={prefs} onPress={() => setDisplayOpen(true)} />
-      {prefs.layout === 'board' ? (
+      {prefs.layout === 'calendar' ? (
+        <CalendarView tasks={projectTasks} projects={projects} labels={labels} showProject={false} />
+      ) : prefs.layout === 'board' ? (
         <BoardView
           sections={listSections}
           allTasks={all}
@@ -60,6 +109,7 @@ export default function ProjectScreen() {
           labels={labels}
           sortBy={prefs.sortBy}
           emptyMessage="No tasks in this project yet."
+          onSectionLongPress={sectionActions}
         />
       )}
       <Fab onPress={() => setAdding(true)} />
@@ -72,6 +122,22 @@ export default function ProjectScreen() {
         reset={reset}
         labels={labels ?? []}
         hideGroupProject
+      />
+      <NamePrompt
+        visible={sectionPrompt !== null}
+        title={sectionPrompt?.id ? 'Rename section' : 'Add section'}
+        initial={sectionPrompt?.name ?? ''}
+        placeholder="Section name"
+        confirmLabel={sectionPrompt?.id ? 'Save' : 'Add'}
+        onCancel={() => setSectionPrompt(null)}
+        onSubmit={(name) => {
+          if (sectionPrompt?.id) {
+            updateSection.mutate({ id: sectionPrompt.id, patch: { name } });
+          } else {
+            createSection.mutate({ project_id: id, name });
+          }
+          setSectionPrompt(null);
+        }}
       />
     </View>
   );

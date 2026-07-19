@@ -7,6 +7,7 @@ import { useDisplayPrefs } from '../../lib/display';
 import { DisplayButton, DisplaySheet } from '../../components/DisplaySheet';
 import { TaskListView, type TaskSection } from '../../components/TaskListView';
 import { BoardView } from '../../components/BoardView';
+import { CalendarView } from '../../components/CalendarView';
 
 export default function LabelScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -32,7 +33,9 @@ export default function LabelScreen() {
     <View style={{ flex: 1 }}>
       <Stack.Screen options={{ title: label ? `@${label.name}` : 'Label' }} />
       <DisplayButton prefs={prefs} onPress={() => setDisplayOpen(true)} />
-      {prefs.layout === 'board' ? (
+      {prefs.layout === 'calendar' ? (
+        <CalendarView tasks={labelTasks} projects={projects} labels={labels} showProject />
+      ) : prefs.layout === 'board' ? (
         <BoardView
           sections={sections}
           allTasks={all}

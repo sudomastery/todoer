@@ -47,7 +47,10 @@ try {
   await page.getByRole('button', { name: 'Sign up' }).click();
   await page.waitForURL('**/app/today', { timeout: 20000 });
   check('signup lands on Today', true);
-  check('sidebar shows user name', await page.getByText('E2E Tester').isVisible());
+  // The sidebar resolves the user from the stored session, so it paints a tick
+  // after the route does.
+  await page.getByText('E2E Tester').waitFor();
+  check('sidebar shows user name', true);
   await page.getByRole('link', { name: /Inbox/ }).first().waitFor();
   check('Inbox nav present (trigger-created project loaded)', true);
 
@@ -208,7 +211,13 @@ try {
   await page.getByText('E2E Tester').click();
   await page.getByText('AI assistant').click();
   await page.getByText('Connect an AI assistant').waitFor();
-  check('mcp dialog shows setup command', await page.getByText('claude mcp add todoer').isVisible());
+  check(
+    'mcp dialog keeps setup details collapsed',
+    !(await page.getByText('claude mcp add todoer').isVisible().catch(() => false)),
+  );
+  await page.getByRole('button', { name: 'Learn how to set it up' }).click();
+  await page.getByText('claude mcp add todoer').waitFor();
+  check('mcp dialog shows setup command once expanded', true);
   check('mcp dialog prefills login', await page.getByText(email).nth(1).isVisible().catch(() => false)
     || (await page.getByRole('dialog').textContent()).includes(email));
   await page.keyboard.press('Escape');
@@ -256,9 +265,18 @@ try {
   await page.getByPlaceholder('Password').fill('password-123');
   await page.getByRole('button', { name: 'Log in' }).click();
   await page.waitForURL('**/app/today', { timeout: 20000 });
-  page.once('dialog', (d) => d.accept());
   await page.getByText('E2E Tester').click();
-  await page.getByText('Delete account').click();
+  await page.getByText('Danger zone').click();
+  check(
+    'danger zone hides destructive options until acknowledged',
+    !(await page.getByRole('button', { name: /Delete my account forever/ }).isVisible().catch(() => false)),
+  );
+  await page.getByRole('button', { name: 'I understand, show options' }).click();
+  const deleteBtn = page.getByRole('button', { name: /Delete my account forever/ });
+  await deleteBtn.waitFor();
+  check('delete stays disabled until the name is typed', await deleteBtn.isDisabled());
+  await page.getByLabel('Type your name to confirm deletion').fill('E2E Tester');
+  await deleteBtn.click();
   await page.waitForURL(BASE + '/', { timeout: 15000 });
   check('account deletion returns to landing', true);
   await page.goto(`${BASE}/login`);

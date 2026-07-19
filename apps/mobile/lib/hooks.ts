@@ -3,9 +3,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   addComment,
   completeTask,
+  createLabel,
   createProject,
+  createSection,
   createTask,
   deleteComment,
+  deleteLabel,
+  deleteSection,
   deleteTask,
   ensureLabels,
   fetchActiveTasks,
@@ -19,7 +23,9 @@ import {
   parseQuickAdd,
   setTaskLabels,
   uncompleteTask,
+  updateLabel,
   updateProject,
+  updateSection,
   deleteProject,
   updateTask,
   type Project,
@@ -193,6 +199,62 @@ export function useDeleteProject() {
     mutationFn: (id: string) => deleteProject(supabase, id),
     onSettled: () => {
       qc.invalidateQueries({ queryKey: ['projects'] });
+      qc.invalidateQueries({ queryKey: ['tasks'] });
+    },
+  });
+}
+
+export function useCreateLabel() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { name: string; color?: string }) => createLabel(supabase, input),
+    onSettled: () => qc.invalidateQueries({ queryKey: ['labels'] }),
+  });
+}
+
+export function useUpdateLabel() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, patch }: { id: string; patch: { name?: string; color?: string } }) =>
+      updateLabel(supabase, id, patch),
+    onSettled: () => qc.invalidateQueries({ queryKey: ['labels'] }),
+  });
+}
+
+export function useDeleteLabel() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => deleteLabel(supabase, id),
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ['labels'] });
+      qc.invalidateQueries({ queryKey: ['tasks'] });
+    },
+  });
+}
+
+export function useCreateSection() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { project_id: string; name: string }) => createSection(supabase, input),
+    onSettled: () => qc.invalidateQueries({ queryKey: ['sections'] }),
+  });
+}
+
+export function useUpdateSection() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, patch }: { id: string; patch: { name?: string; sort_order?: number } }) =>
+      updateSection(supabase, id, patch),
+    onSettled: () => qc.invalidateQueries({ queryKey: ['sections'] }),
+  });
+}
+
+export function useDeleteSection() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => deleteSection(supabase, id),
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ['sections'] });
       qc.invalidateQueries({ queryKey: ['tasks'] });
     },
   });

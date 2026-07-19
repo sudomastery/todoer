@@ -7,6 +7,7 @@ import { useActiveTasks, useCompletedTasks, useLabels } from '@/lib/hooks';
 import { useDisplayPrefs } from '@/lib/display';
 import { TaskList } from '@/components/task-list';
 import { TaskView } from '@/components/task-view';
+import { TaskListSkeleton } from '@/components/loading';
 import { DisplayMenu } from '@/components/display-menu';
 
 export default function LabelPage({ params }: { params: Promise<{ id: string }> }) {
@@ -21,7 +22,7 @@ export default function LabelPage({ params }: { params: Promise<{ id: string }> 
   const labelTasks = all.filter((t) => t.label_ids.includes(id));
   const labelCompleted = (completed ?? []).filter((t) => t.label_ids.includes(id));
 
-  if (isLoading) return <p className="py-8 text-sm text-fg-faint">Loading…</p>;
+  if (isLoading) return <TaskListSkeleton className="py-2" />;
   if (!label) return <p className="py-8 text-sm text-fg-secondary">Label not found.</p>;
 
   return (

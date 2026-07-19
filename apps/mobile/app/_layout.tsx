@@ -59,6 +59,7 @@ export default function RootLayout() {
           <Stack.Screen name="completed" options={{ title: 'Completed' }} />
           <Stack.Screen name="stats" options={{ title: 'Productivity' }} />
           <Stack.Screen name="calendar" options={{ title: 'Calendar' }} />
+          <Stack.Screen name="assistant" options={{ title: 'AI assistant' }} />
           <Stack.Screen name="search" options={{ title: 'Search' }} />
         </Stack>
       </AuthGate>

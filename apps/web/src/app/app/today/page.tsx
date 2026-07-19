@@ -7,6 +7,7 @@ import { useDisplayPrefs } from '@/lib/display';
 import { AddTaskButton, TaskList } from '@/components/task-list';
 import { TaskView } from '@/components/task-view';
 import { DisplayMenu } from '@/components/display-menu';
+import { TaskListSkeleton } from '@/components/loading';
 
 export default function TodayPage() {
   const { data: tasks, isLoading } = useActiveTasks();
@@ -61,7 +62,7 @@ export default function TodayPage() {
       </p>
 
       {isLoading ? (
-        <p className="py-8 text-sm text-fg-faint">Loading…</p>
+        <TaskListSkeleton className="py-2" />
       ) : (
         <>
           <TaskView

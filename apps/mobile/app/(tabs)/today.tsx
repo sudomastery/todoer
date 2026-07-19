@@ -6,12 +6,13 @@ import { useActiveTasks, useLabels, useProjects, useRealtimeSync } from '../../l
 import { TaskListView } from '../../components/TaskListView';
 import { AddTaskSheet } from '../../components/AddTaskSheet';
 import { Fab } from '../../components/Fab';
+import { TaskListSkeleton } from '../../components/Skeleton';
 import { useTheme } from '../../lib/theme';
 
 export default function TodayScreen() {
   useRealtimeSync();
   const t = useTheme();
-  const { data: tasks } = useActiveTasks();
+  const { data: tasks, isLoading } = useActiveTasks();
   const { data: projects } = useProjects();
   const { data: labels } = useLabels();
   const [adding, setAdding] = useState(false);
@@ -22,6 +23,8 @@ export default function TodayScreen() {
 
   return (
     <View style={{ flex: 1 }}>
+      {isLoading && <TaskListSkeleton />}
+      {!isLoading && (
       <TaskListView
         sections={[
           { title: overdue.length > 0 ? 'Overdue' : null, data: overdue, accent: t.brand },
@@ -36,6 +39,7 @@ export default function TodayScreen() {
         showProject
         emptyMessage="Enjoy your day! Nothing due today."
       />
+      )}
       <Fab onPress={() => setAdding(true)} />
       <AddTaskSheet
         visible={adding}

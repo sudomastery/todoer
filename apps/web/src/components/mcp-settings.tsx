@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Check, Copy } from 'lucide-react';
+import { Check, ChevronDown, ChevronUp, Copy } from 'lucide-react';
 import { Dialog, DialogContent } from '@/components/ui';
 
 const REPO = 'https://github.com/sudomastery/todoer';
@@ -49,6 +49,7 @@ export function McpSettingsDialog({
   onOpenChange: (open: boolean) => void;
   login?: string | null;
 }) {
+  const [showSetup, setShowSetup] = useState(false);
   const who = login || 'your_username_or_email';
 
   const clone = `git clone ${REPO}\ncd todoer\nnpm install`;
@@ -76,24 +77,48 @@ export function McpSettingsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent title="AI assistant (MCP)" className="max-w-lg p-5">
+      <DialogContent title="AI assistant" className="max-w-lg p-5">
         <h2 className="mb-1 text-base font-semibold">Connect an AI assistant</h2>
-        <p className="mb-4 text-sm text-fg-secondary">
-          Todoer ships an MCP server, so any MCP-capable assistant (Claude Code, Claude
-          Desktop, and others) can add, complete, comment on, and organize your tasks
-          for you. It signs in as you, and only ever sees your own data.
+        <p className="mb-4 text-sm leading-relaxed text-fg-secondary">
+          You can let an AI assistant manage your tasks by talking to it. Ask it to
+          &quot;add buy milk tomorrow&quot; or &quot;what is due today?&quot; and it updates Todoer
+          for you. The assistant signs in as you and only ever sees your own tasks.
         </p>
 
-        <CodeBlock label="1. Get the server (once)" code={clone} />
-        <CodeBlock label="2a. Claude Code (run inside the todoer folder)" code={claudeCode} />
-        <CodeBlock label="2b. Or Claude Desktop: claude_desktop_config.json" code={desktop} />
+        <div className="mb-4 rounded-lg border border-border-default bg-bg-sidebar p-3">
+          <p className="mb-2 text-xs font-semibold text-fg-secondary">What it can do</p>
+          <ul className="space-y-1 text-sm text-fg-secondary">
+            <li>Add, edit, complete, and delete tasks</li>
+            <li>Organize projects, sections, and labels</li>
+            <li>Leave comments and summarize what you finished</li>
+          </ul>
+        </div>
 
-        <p className="text-xs text-fg-faint">
-          Then ask things like &quot;add buy milk tomorrow p2 to my Inbox&quot; or
-          &quot;what is due today?&quot;. Task text supports the same quick add syntax
-          as this app. Your password stays in your local MCP configuration and is only
-          sent to Todoer&apos;s own backend.
-        </p>
+        <button
+          type="button"
+          onClick={() => setShowSetup((v) => !v)}
+          aria-expanded={showSetup}
+          className="flex w-full items-center justify-between rounded-md border border-border-default px-3 py-2 text-sm font-medium hover:bg-bg-hover"
+        >
+          Learn how to set it up
+          {showSetup ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        </button>
+
+        {showSetup && (
+          <div className="mt-4">
+            <p className="mb-3 text-xs leading-relaxed text-fg-faint">
+              Setup is a one-off and needs a terminal. Todoer ships an MCP server that any
+              MCP-capable assistant (Claude Code, Claude Desktop, and others) can connect to.
+            </p>
+            <CodeBlock label="1. Get the server (once)" code={clone} />
+            <CodeBlock label="2a. Claude Code (run inside the todoer folder)" code={claudeCode} />
+            <CodeBlock label="2b. Or Claude Desktop: claude_desktop_config.json" code={desktop} />
+            <p className="text-xs text-fg-faint">
+              Task text supports the same quick add syntax as this app. Your password stays in
+              your local MCP configuration and is only sent to Todoer&apos;s own backend.
+            </p>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

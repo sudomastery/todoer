@@ -1,4 +1,4 @@
-import { SectionList, StyleSheet, Text, View } from 'react-native';
+import { Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
 import { sortTasksBy, type Label, type Project, type SortBy, type TaskWithLabels } from '@todoer/shared';
 import { TaskRow } from './TaskRow';
 import { useTheme } from '../lib/theme';
@@ -7,6 +7,8 @@ export interface TaskSection {
   title: string | null;
   data: TaskWithLabels[];
   accent?: string;
+  /** Set for real project sections, so the header can offer rename and delete. */
+  sectionId?: string;
 }
 
 /** Flattens parent tasks followed by their subtasks, preserving sections. */
@@ -18,6 +20,7 @@ export function TaskListView({
   showProject = false,
   emptyMessage = 'No tasks here.',
   sortBy = 'manual',
+  onSectionLongPress,
 }: {
   sections: TaskSection[];
   allTasks: TaskWithLabels[];
@@ -26,6 +29,7 @@ export function TaskListView({
   showProject?: boolean;
   emptyMessage?: string;
   sortBy?: SortBy;
+  onSectionLongPress?: (sectionId: string, name: string) => void;
 }) {
   const t = useTheme();
 
@@ -61,14 +65,22 @@ export function TaskListView({
       contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 120 }}
       renderSectionHeader={({ section }) =>
         section.title ? (
-          <Text
-            style={[
-              styles.sectionTitle,
-              { color: section.accent ?? t.fg, borderBottomColor: t.border },
-            ]}
+          <Pressable
+            onLongPress={
+              section.sectionId && onSectionLongPress
+                ? () => onSectionLongPress(section.sectionId as string, section.title as string)
+                : undefined
+            }
           >
-            {section.title}
-          </Text>
+            <Text
+              style={[
+                styles.sectionTitle,
+                { color: section.accent ?? t.fg, borderBottomColor: t.border },
+              ]}
+            >
+              {section.title}
+            </Text>
+          </Pressable>
         ) : null
       }
       renderItem={({ item }) => (
