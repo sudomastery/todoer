@@ -7,17 +7,20 @@ import {
   useQueryClient,
 } from '@tanstack/react-query';
 import {
+  addComment,
   completeTask,
   createLabel,
   createProject,
   createSection,
   createTask,
+  deleteComment,
   deleteLabel,
   deleteProject,
   deleteSection,
   deleteTask,
   ensureLabels,
   fetchActiveTasks,
+  fetchComments,
   fetchCompletedSince,
   fetchCompletedTasks,
   fetchLabels,
@@ -239,6 +242,33 @@ export function useUpdateTask() {
       if (ctx?.prev) qc.setQueryData(['tasks'], ctx.prev);
     },
     onSettled: () => invalidateTasks(qc),
+  });
+}
+
+export function useComments(taskId: string) {
+  const db = useSupabase();
+  return useQuery({
+    queryKey: ['comments', taskId],
+    queryFn: () => fetchComments(db, taskId),
+  });
+}
+
+export function useAddComment() {
+  const db = useSupabase();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ taskId, content }: { taskId: string; content: string }) =>
+      addComment(db, taskId, content),
+    onSettled: (_d, _e, { taskId }) => qc.invalidateQueries({ queryKey: ['comments', taskId] }),
+  });
+}
+
+export function useDeleteComment() {
+  const db = useSupabase();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id }: { id: string; taskId: string }) => deleteComment(db, id),
+    onSettled: (_d, _e, { taskId }) => qc.invalidateQueries({ queryKey: ['comments', taskId] }),
   });
 }
 

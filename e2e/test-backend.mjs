@@ -17,6 +17,10 @@ import {
   fetchLabels,
   setTaskLabels,
   deleteProject,
+  addComment,
+  fetchComments,
+  deleteComment,
+  buildExport,
 } from '../packages/shared/src/queries.ts';
 import { parseQuickAdd } from '../packages/shared/src/quickadd.ts';
 import { todayISO } from '../packages/shared/src/dates.ts';
@@ -208,8 +212,28 @@ const gotEvent = new Promise((resolve) => {
 const eventContent = await gotEvent;
 check('realtime INSERT event received', eventContent === 'realtime ping', String(eventContent));
 
+console.log('== comments ==');
+const comment = await addComment(dbA, parent.id, 'Blocked on the vendor reply');
+check('comment created', comment.task_id === parent.id && comment.content.startsWith('Blocked'));
+const comments = await fetchComments(dbA, parent.id);
+check('comments listed for task', comments.length === 1 && comments[0].id === comment.id);
+const bobView = await fetchComments(dbB, parent.id);
+check('bob cannot read alice comments', bobView.length === 0);
+const { error: bobComment } = await dbB
+  .from('task_comments')
+  .insert({ task_id: parent.id, content: 'sneaky', user_id: (await dbB.auth.getUser()).data.user.id });
+check('bob cannot comment on alice task', !!bobComment, bobComment?.message);
+const exported = await buildExport(dbA);
+check('export includes comments', exported.version === 2
+  && exported.comments.some((c) => c.id === comment.id));
+const throwaway = await addComment(dbA, parent.id, 'temp');
+await deleteComment(dbA, throwaway.id);
+check('comment deleted', (await fetchComments(dbA, parent.id)).length === 1);
+
 console.log('== delete ==');
 await deleteTask(dbA, parent.id);
+const { data: orphanComments } = await dbA.from('task_comments').select('*').eq('id', comment.id);
+check('deleting task cascades its comments', (orphanComments ?? []).length === 0);
 active = await fetchActiveTasks(dbA);
 check('delete cascades to subtask', !active.some((t) => t.id === parent.id || t.id === child.id));
 await deleteProject(dbA, work.id);

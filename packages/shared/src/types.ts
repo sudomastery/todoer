@@ -64,6 +64,14 @@ export interface TaskLabel {
   user_id: string;
 }
 
+export interface TaskComment {
+  id: string;
+  user_id: string;
+  task_id: string;
+  content: string;
+  created_at: string;
+}
+
 /** Task joined with its label ids, the shape both apps render. */
 export interface TaskWithLabels extends Task {
   label_ids: string[];
