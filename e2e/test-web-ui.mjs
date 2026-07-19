@@ -182,6 +182,15 @@ try {
   check('sound preference persisted', soundPref === 'ding', soundPref);
   await page.keyboard.press('Escape');
 
+  console.log('== mcp instructions ==');
+  await page.getByText('E2E Tester').click();
+  await page.getByText('AI assistant').click();
+  await page.getByText('Connect an AI assistant').waitFor();
+  check('mcp dialog shows setup command', await page.getByText('claude mcp add todoer').isVisible());
+  check('mcp dialog prefills login', await page.getByText(email).nth(1).isVisible().catch(() => false)
+    || (await page.getByRole('dialog').textContent()).includes(email));
+  await page.keyboard.press('Escape');
+
   console.log('== dark mode ==');
   await page.getByText('E2E Tester').click();
   await page.getByText('Dark theme').click();
