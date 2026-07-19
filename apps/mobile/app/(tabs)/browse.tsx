@@ -16,8 +16,10 @@ import { buildExport, colorHex, deleteAccount } from '@todoer/shared';
 import {
   useActiveTasks,
   useCreateProject,
+  useDeleteProject,
   useLabels,
   useProjects,
+  useUpdateProject,
 } from '../../lib/hooks';
 import {
   COMPLETION_SOUNDS,
@@ -27,7 +29,8 @@ import {
   type SoundPref,
 } from '../../lib/sound';
 import { supabase } from '../../lib/supabase';
-import { useTheme } from '../../lib/theme';
+import { useAccentId, useTheme, setAccentId } from '../../lib/theme';
+import { ACCENT_THEMES } from '@todoer/shared';
 
 const SOUND_LABELS: Record<string, string> = {
   off: 'Off',
@@ -37,6 +40,70 @@ const SOUND_LABELS: Record<string, string> = {
   chime: 'Chime',
   tada: 'Tada',
 };
+
+function CollapsibleSection({
+  title,
+  color,
+  children,
+}: {
+  title: string;
+  color?: string;
+  children: React.ReactNode;
+}) {
+  const t = useTheme();
+  const [open, setOpen] = useState(false);
+  return (
+    <View>
+      <Pressable
+        onPress={() => setOpen((v) => !v)}
+        style={({ pressed }) => [
+          styles.collapseHead,
+          { borderBottomColor: t.border },
+          pressed && { backgroundColor: t.bgPressed },
+        ]}
+      >
+        <Text style={[styles.sectionTitle, { color: color ?? t.fg }]}>{title}</Text>
+        <Ionicons
+          name={open ? 'chevron-up' : 'chevron-down'}
+          size={17}
+          color={color ?? t.fgSecondary}
+        />
+      </Pressable>
+      {open && <View style={{ paddingTop: 4 }}>{children}</View>}
+    </View>
+  );
+}
+
+function ThemeSetting() {
+  const t = useTheme();
+  const accent = useAccentId();
+  return (
+    <View>
+      <Text style={[styles.settingLabel, { color: t.fgSecondary }]}>Theme</Text>
+      <View style={styles.chipRow}>
+        {ACCENT_THEMES.map((theme) => {
+          const active = accent === theme.id;
+          return (
+            <Pressable
+              key={theme.id}
+              onPress={() => setAccentId(theme.id)}
+              style={[
+                styles.chip,
+                { borderColor: active ? theme.primary : t.border, flexDirection: 'row', alignItems: 'center', gap: 6 },
+                active && { backgroundColor: t.bgPressed },
+              ]}
+            >
+              <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: theme.primary }} />
+              <Text style={{ color: active ? theme.primary : t.fgSecondary, fontSize: 13 }}>
+                {theme.name}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
 
 function SoundSetting() {
   const t = useTheme();
@@ -55,10 +122,8 @@ function SoundSetting() {
   const options: SoundPref[] = ['off', 'random', ...COMPLETION_SOUNDS];
 
   return (
-    <View>
-      <View style={[styles.sectionHead, { marginTop: 28 }]}>
-        <Text style={[styles.sectionTitle, { color: t.fg }]}>Completion sound</Text>
-      </View>
+    <View style={{ marginTop: 10 }}>
+      <Text style={[styles.settingLabel, { color: t.fgSecondary }]}>Completion sound</Text>
       <View style={styles.chipRow}>
         {options.map((o) => (
           <Pressable
@@ -87,22 +152,68 @@ export default function BrowseScreen() {
   const { data: labels } = useLabels();
   const { data: tasks } = useActiveTasks();
   const createProject = useCreateProject();
+  const updateProject = useUpdateProject();
+  const deleteProject = useDeleteProject();
 
   const regular = (projects ?? []).filter((p) => !p.is_inbox);
   const all = tasks ?? [];
   const [addingProject, setAddingProject] = useState(false);
+  const [renamingProjectId, setRenamingProjectId] = useState<string | null>(null);
   const [projectName, setProjectName] = useState('');
 
   function submitProject() {
     const name = projectName.trim();
     if (!name) return;
-    createProject.mutate({ name, color: 'blue' });
+    if (renamingProjectId) {
+      updateProject.mutate({ id: renamingProjectId, patch: { name } });
+    } else {
+      createProject.mutate({ name, color: 'blue' });
+    }
     setProjectName('');
     setAddingProject(false);
+    setRenamingProjectId(null);
+  }
+
+  function projectActions(p: (typeof regular)[number]) {
+    Alert.alert(p.name, undefined, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Rename',
+        onPress: () => {
+          setProjectName(p.name);
+          setRenamingProjectId(p.id);
+          setAddingProject(true);
+        },
+      },
+      {
+        text: p.is_favorite ? 'Remove from favorites' : 'Add to favorites',
+        onPress: () => updateProject.mutate({ id: p.id, patch: { is_favorite: !p.is_favorite } }),
+      },
+      {
+        text: 'Delete project',
+        style: 'destructive',
+        onPress: () =>
+          Alert.alert('Delete project', `Delete "${p.name}" and all its tasks?`, [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Delete', style: 'destructive', onPress: () => deleteProject.mutate(p.id) },
+          ]),
+      },
+    ]);
   }
 
   return (
     <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 60 }}>
+      <Pressable
+        onPress={() => router.push('/search')}
+        style={({ pressed }) => [
+          styles.row,
+          { borderBottomColor: t.border },
+          pressed && { backgroundColor: t.bgPressed },
+        ]}
+      >
+        <Ionicons name="search" size={18} color={t.fgSecondary} />
+        <Text style={[styles.rowText, { color: t.fg }]}>Search</Text>
+      </Pressable>
       <Pressable
         onPress={() => router.push('/stats')}
         style={({ pressed }) => [
@@ -113,6 +224,17 @@ export default function BrowseScreen() {
       >
         <Ionicons name="bar-chart-outline" size={18} color="#0d9488" />
         <Text style={[styles.rowText, { color: t.fg }]}>Productivity</Text>
+      </Pressable>
+      <Pressable
+        onPress={() => router.push('/calendar')}
+        style={({ pressed }) => [
+          styles.row,
+          { borderBottomColor: t.border },
+          pressed && { backgroundColor: t.bgPressed },
+        ]}
+      >
+        <Ionicons name="calendar-number-outline" size={18} color="#7c3aed" />
+        <Text style={[styles.rowText, { color: t.fg }]}>Calendar</Text>
       </Pressable>
       <Pressable
         onPress={() => router.push('/completed')}
@@ -139,6 +261,7 @@ export default function BrowseScreen() {
           <Pressable
             key={p.id}
             onPress={() => router.push(`/project/${p.id}`)}
+            onLongPress={() => projectActions(p)}
             style={({ pressed }) => [
               styles.row,
               { borderBottomColor: t.border },
@@ -185,60 +308,74 @@ export default function BrowseScreen() {
         </Text>
       )}
 
-      <SoundSetting />
+      <View style={{ marginTop: 28 }} />
+      <CollapsibleSection title="Personalisation">
+        <ThemeSetting />
+        <SoundSetting />
+      </CollapsibleSection>
 
-      <View style={[styles.sectionHead, { marginTop: 28 }]}>
-        <Text style={[styles.sectionTitle, { color: t.fg }]}>Account</Text>
-      </View>
-      <Pressable
-        onPress={async () => {
-          try {
-            const data = await buildExport(supabase);
-            await Share.share({
-              title: 'Todoer export',
-              message: JSON.stringify(data, null, 2),
-            });
-          } catch (e) {
-            Alert.alert('Export failed', e instanceof Error ? e.message : 'Unknown error');
+      <CollapsibleSection title="Account">
+        <Pressable
+          onPress={async () => {
+            try {
+              const data = await buildExport(supabase);
+              await Share.share({
+                title: 'Todoer export',
+                message: JSON.stringify(data, null, 2),
+              });
+            } catch (e) {
+              Alert.alert('Export failed', e instanceof Error ? e.message : 'Unknown error');
+            }
+          }}
+          style={({ pressed }) => [
+            styles.row,
+            { borderBottomColor: t.border },
+            pressed && { backgroundColor: t.bgPressed },
+          ]}
+        >
+          <Ionicons name="download-outline" size={18} color={t.fgSecondary} />
+          <Text style={[styles.rowText, { color: t.fg }]}>Export data</Text>
+        </Pressable>
+        <Pressable
+          onPress={() =>
+            Alert.alert('Log out', 'Are you sure you want to log out?', [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Log out', style: 'destructive', onPress: () => supabase.auth.signOut() },
+            ])
           }
-        }}
-        style={({ pressed }) => [
-          styles.row,
-          { borderBottomColor: t.border },
-          pressed && { backgroundColor: t.bgPressed },
-        ]}
-      >
-        <Ionicons name="download-outline" size={18} color={t.fgSecondary} />
-        <Text style={[styles.rowText, { color: t.fg }]}>Export data</Text>
-      </Pressable>
-      <Pressable
-        onPress={() =>
-          Alert.alert('Log out', 'Are you sure you want to log out?', [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Log out', style: 'destructive', onPress: () => supabase.auth.signOut() },
-          ])
-        }
-        style={({ pressed }) => [
-          styles.row,
-          { borderBottomColor: t.border },
-          pressed && { backgroundColor: t.bgPressed },
-        ]}
-      >
-        <Ionicons name="log-out-outline" size={18} color={t.fgSecondary} />
-        <Text style={[styles.rowText, { color: t.fg }]}>Log out</Text>
-      </Pressable>
+          style={({ pressed }) => [
+            styles.row,
+            { borderBottomColor: t.border },
+            pressed && { backgroundColor: t.bgPressed },
+          ]}
+        >
+          <Ionicons name="log-out-outline" size={18} color={t.fgSecondary} />
+          <Text style={[styles.rowText, { color: t.fg }]}>Log out</Text>
+        </Pressable>
+      </CollapsibleSection>
 
       <Modal
         visible={addingProject}
         animationType="fade"
         transparent
-        onRequestClose={() => setAddingProject(false)}
+        onRequestClose={() => {
+          setAddingProject(false);
+          setRenamingProjectId(null);
+          setProjectName('');
+        }}
       >
-        <Pressable style={styles.modalBackdrop} onPress={() => setAddingProject(false)} />
+        <Pressable
+          style={styles.modalBackdrop}
+          onPress={() => {
+            setAddingProject(false);
+            setRenamingProjectId(null);
+            setProjectName('');
+          }}
+        />
         <View style={styles.modalCenter} pointerEvents="box-none">
           <View style={[styles.modalCard, { backgroundColor: t.bgElevated }]}>
             <Text style={[styles.sectionTitle, { color: t.fg, marginBottom: 10 }]}>
-              Add project
+              {renamingProjectId ? 'Rename project' : 'Add project'}
             </Text>
             <TextInput
               autoFocus
@@ -251,7 +388,14 @@ export default function BrowseScreen() {
               returnKeyType="done"
             />
             <View style={styles.modalActions}>
-              <Pressable onPress={() => setAddingProject(false)} hitSlop={6}>
+              <Pressable
+                onPress={() => {
+                  setAddingProject(false);
+                  setRenamingProjectId(null);
+                  setProjectName('');
+                }}
+                hitSlop={6}
+              >
                 <Text style={{ color: t.fgSecondary, fontSize: 14 }}>Cancel</Text>
               </Pressable>
               <Pressable onPress={submitProject} hitSlop={6} disabled={!projectName.trim()}>
@@ -263,7 +407,7 @@ export default function BrowseScreen() {
                     opacity: projectName.trim() ? 1 : 0.4,
                   }}
                 >
-                  Add
+                  {renamingProjectId ? 'Save' : 'Add'}
                 </Text>
               </Pressable>
             </View>
@@ -271,9 +415,7 @@ export default function BrowseScreen() {
         </View>
       </Modal>
 
-      <View style={[styles.sectionHead, { marginTop: 28 }]}>
-        <Text style={[styles.sectionTitle, { color: '#d1453b' }]}>Danger zone</Text>
-      </View>
+      <CollapsibleSection title="Danger zone" color="#d1453b">
       <View style={[styles.dangerZone, { borderColor: '#d1453b' }]}>
         <Text style={{ color: t.fgSecondary, fontSize: 12, marginBottom: 10, lineHeight: 17 }}>
           Deleting your account permanently erases every project, task, label, and comment.
@@ -311,6 +453,7 @@ export default function BrowseScreen() {
           <Text style={{ color: '#d1453b', fontSize: 14, fontWeight: '600' }}>Delete account</Text>
         </Pressable>
       </View>
+      </CollapsibleSection>
     </ScrollView>
   );
 }
@@ -323,6 +466,14 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   sectionTitle: { fontSize: 16, fontWeight: '700' },
+  collapseHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 13,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  settingLabel: { fontSize: 12, fontWeight: '600', marginTop: 8, marginBottom: 2 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
