@@ -59,7 +59,10 @@ try {
   const qa = page.getByPlaceholder(/Task name, e.g./);
   await qa.waitFor();
   await qa.fill('Pay rent tomorrow 9am p1 @finance every month');
-  check('due chip parsed Tomorrow', await page.getByText('Tomorrow', { exact: true }).first().isVisible());
+  // The chip now carries the parsed time alongside the day, so it reads
+  // 'Tomorrow 9:00 AM' rather than a bare 'Tomorrow'.
+  check('due chip parsed Tomorrow', await page.getByText(/^Tomorrow/).first().isVisible());
+  check('due chip shows the parsed time', await page.getByText(/Tomorrow 9:00 AM/).first().isVisible());
   check('priority chip parsed P1', await page.getByText('P1', { exact: true }).first().isVisible());
   check('recurrence chip parsed', await page.getByText(/every month/).first().isVisible());
   await page.getByRole('button', { name: 'Add task' }).click();
@@ -77,12 +80,11 @@ try {
   const target = new Date();
   target.setDate(15);
   target.setMonth(target.getMonth() + 1);
-  const label = target.toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-  });
+  // Must match the grid's aria-label exactly: date-fns 'EEEE MMMM d yyyy',
+  // which has no commas, unlike toLocaleDateString's long form.
+  const weekday = target.toLocaleDateString('en-US', { weekday: 'long' });
+  const monthName = target.toLocaleDateString('en-US', { month: 'long' });
+  const label = `${weekday} ${monthName} ${target.getDate()} ${target.getFullYear()}`;
   await page.getByRole('button', { name: 'Next month' }).click();
   check('time input is disabled before a date is picked', await page.getByLabel('Due time').isDisabled());
   await page.getByRole('button', { name: label }).click();

@@ -82,11 +82,12 @@ export function DuePicker({
     setText('');
   }
 
-  // Reset the visible month each time the popover opens, otherwise it keeps
-  // wherever the user browsed to last time.
+  // Reset the visible month when the popover closes rather than as it opens.
+  // Setting state during the open transition re-renders the content while
+  // Radix is measuring it, which leaves the popper unpositioned.
   function handleOpenChange(next: boolean) {
-    if (next) setMonth(startOfMonth(value ? parseISO(value) : new Date()));
     setOpen(next);
+    if (!next) setMonth(startOfMonth(value ? parseISO(value) : new Date()));
   }
 
   const quick = [

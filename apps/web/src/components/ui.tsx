@@ -1,5 +1,6 @@
 'use client';
 
+import * as React from 'react';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import * as DropdownPrimitive from '@radix-ui/react-dropdown-menu';
 import * as PopoverPrimitive from '@radix-ui/react-popover';
@@ -194,21 +195,21 @@ export function IconButton({
   );
 }
 
-export function Chip({
-  children,
-  onClick,
-  active,
-  className,
-}: {
-  children: React.ReactNode;
-  onClick?: () => void;
-  active?: boolean;
-  className?: string;
-}) {
+/**
+ * Chips are used as `asChild` triggers for the pickers, so the ref and the
+ * props Radix injects (aria-expanded, data-state, pointer handlers) have to
+ * reach the underlying button. Dropping the ref leaves the popper with no
+ * anchor to measure, which parks it off-screen at its placeholder transform.
+ */
+export const Chip = React.forwardRef<
+  HTMLButtonElement,
+  React.ComponentPropsWithoutRef<'button'> & { active?: boolean }
+>(function Chip({ children, active, className, ...props }, ref) {
   return (
     <button
+      ref={ref}
       type="button"
-      onClick={onClick}
+      {...props}
       className={clsx(
         'flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs font-medium',
         active
@@ -220,4 +221,4 @@ export function Chip({
       {children}
     </button>
   );
-}
+});
