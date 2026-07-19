@@ -187,6 +187,9 @@ export default function BrowseScreen() {
 
       <SoundSetting />
 
+      <View style={[styles.sectionHead, { marginTop: 28 }]}>
+        <Text style={[styles.sectionTitle, { color: t.fg }]}>Account</Text>
+      </View>
       <Pressable
         onPress={async () => {
           try {
@@ -199,12 +202,15 @@ export default function BrowseScreen() {
             Alert.alert('Export failed', e instanceof Error ? e.message : 'Unknown error');
           }
         }}
-        style={[styles.logout, { borderColor: t.border }]}
+        style={({ pressed }) => [
+          styles.row,
+          { borderBottomColor: t.border },
+          pressed && { backgroundColor: t.bgPressed },
+        ]}
       >
         <Ionicons name="download-outline" size={18} color={t.fgSecondary} />
-        <Text style={{ color: t.fgSecondary, fontSize: 14, fontWeight: '500' }}>Export data</Text>
+        <Text style={[styles.rowText, { color: t.fg }]}>Export data</Text>
       </Pressable>
-
       <Pressable
         onPress={() =>
           Alert.alert('Log out', 'Are you sure you want to log out?', [
@@ -212,10 +218,14 @@ export default function BrowseScreen() {
             { text: 'Log out', style: 'destructive', onPress: () => supabase.auth.signOut() },
           ])
         }
-        style={[styles.logout, { borderColor: t.border, marginTop: 12 }]}
+        style={({ pressed }) => [
+          styles.row,
+          { borderBottomColor: t.border },
+          pressed && { backgroundColor: t.bgPressed },
+        ]}
       >
         <Ionicons name="log-out-outline" size={18} color={t.fgSecondary} />
-        <Text style={{ color: t.fgSecondary, fontSize: 14, fontWeight: '500' }}>Log out</Text>
+        <Text style={[styles.rowText, { color: t.fg }]}>Log out</Text>
       </Pressable>
 
       <Modal
@@ -261,33 +271,46 @@ export default function BrowseScreen() {
         </View>
       </Modal>
 
-      <Pressable
-        onPress={() =>
-          Alert.alert(
-            'Delete account',
-            'This permanently erases your account and every project, task, and label. It cannot be undone.',
-            [
-              { text: 'Cancel', style: 'cancel' },
-              {
-                text: 'Delete forever',
-                style: 'destructive',
-                onPress: async () => {
-                  try {
-                    await deleteAccount(supabase);
-                    await supabase.auth.signOut();
-                  } catch (e) {
-                    Alert.alert('Could not delete account', e instanceof Error ? e.message : 'Unknown error');
-                  }
+      <View style={[styles.sectionHead, { marginTop: 28 }]}>
+        <Text style={[styles.sectionTitle, { color: '#d1453b' }]}>Danger zone</Text>
+      </View>
+      <View style={[styles.dangerZone, { borderColor: '#d1453b' }]}>
+        <Text style={{ color: t.fgSecondary, fontSize: 12, marginBottom: 10, lineHeight: 17 }}>
+          Deleting your account permanently erases every project, task, label, and comment.
+          This cannot be undone.
+        </Text>
+        <Pressable
+          onPress={() =>
+            Alert.alert(
+              'Delete account',
+              'This permanently erases your account and every project, task, and label. It cannot be undone.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Delete forever',
+                  style: 'destructive',
+                  onPress: async () => {
+                    try {
+                      await deleteAccount(supabase);
+                      await supabase.auth.signOut();
+                    } catch (e) {
+                      Alert.alert('Could not delete account', e instanceof Error ? e.message : 'Unknown error');
+                    }
+                  },
                 },
-              },
-            ],
-          )
-        }
-        style={[styles.logout, { borderColor: '#d1453b', marginTop: 12 }]}
-      >
-        <Ionicons name="trash-outline" size={18} color="#d1453b" />
-        <Text style={{ color: '#d1453b', fontSize: 14, fontWeight: '500' }}>Delete account</Text>
-      </Pressable>
+              ],
+            )
+          }
+          style={({ pressed }) => [
+            styles.dangerBtn,
+            { borderColor: '#d1453b' },
+            pressed && { backgroundColor: 'rgba(209,69,59,0.08)' },
+          ]}
+        >
+          <Ionicons name="trash-outline" size={16} color="#d1453b" />
+          <Text style={{ color: '#d1453b', fontSize: 14, fontWeight: '600' }}>Delete account</Text>
+        </Pressable>
+      </View>
     </ScrollView>
   );
 }
@@ -316,15 +339,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
   },
-  logout: {
+  dangerZone: {
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 14,
+    marginTop: 6,
+  },
+  dangerBtn: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 8,
-    marginTop: 36,
     borderWidth: 1,
     borderRadius: 8,
-    paddingVertical: 12,
-    justifyContent: 'center',
+    paddingVertical: 10,
   },
   modalBackdrop: {
     ...(StyleSheet.absoluteFill as object),
