@@ -1,4 +1,5 @@
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import {
   colorHex,
@@ -27,6 +28,7 @@ export function TaskRow({
   depth?: number;
 }) {
   const t = useTheme();
+  const router = useRouter();
   const completeTask = useCompleteTask();
   const deleteTask = useDeleteTask();
 
@@ -37,6 +39,7 @@ export function TaskRow({
 
   return (
     <Pressable
+      onPress={() => router.push(`/task/${task.id}`)}
       onLongPress={() =>
         Alert.alert(task.content, undefined, [
           { text: 'Cancel', style: 'cancel' },

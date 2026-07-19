@@ -1,12 +1,17 @@
 import { useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  addComment,
   completeTask,
   createProject,
   createTask,
+  deleteComment,
   deleteTask,
   ensureLabels,
   fetchActiveTasks,
+  fetchComments,
+  fetchCompletedSince,
+  fetchCompletedTasks,
   fetchLabels,
   fetchProjects,
   fetchSections,
@@ -37,14 +42,51 @@ export function useActiveTasks() {
   return useQuery({ queryKey: ['tasks'], queryFn: () => fetchActiveTasks(supabase) });
 }
 
+export function useCompletedTasks() {
+  return useQuery({ queryKey: ['tasks-completed'], queryFn: () => fetchCompletedTasks(supabase) });
+}
+
+export function useCompletedSince(sinceIso: string) {
+  return useQuery({
+    queryKey: ['tasks-completed-since', sinceIso],
+    queryFn: () => fetchCompletedSince(supabase, sinceIso),
+  });
+}
+
+export function useComments(taskId: string) {
+  return useQuery({
+    queryKey: ['comments', taskId],
+    queryFn: () => fetchComments(supabase, taskId),
+  });
+}
+
+export function useAddComment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ taskId, content }: { taskId: string; content: string }) =>
+      addComment(supabase, taskId, content),
+    onSettled: (_d, _e, { taskId }) => qc.invalidateQueries({ queryKey: ['comments', taskId] }),
+  });
+}
+
+export function useDeleteComment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id }: { id: string; taskId: string }) => deleteComment(supabase, id),
+    onSettled: (_d, _e, { taskId }) => qc.invalidateQueries({ queryKey: ['comments', taskId] }),
+  });
+}
+
 export function useRealtimeSync() {
   const qc = useQueryClient();
   useEffect(() => {
     const channel = supabase
       .channel('todoer-mobile-sync')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () =>
-        qc.invalidateQueries({ queryKey: ['tasks'] }),
-      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => {
+        qc.invalidateQueries({ queryKey: ['tasks'] });
+        qc.invalidateQueries({ queryKey: ['tasks-completed'] });
+        qc.invalidateQueries({ queryKey: ['tasks-completed-since'] });
+      })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'task_labels' }, () =>
         qc.invalidateQueries({ queryKey: ['tasks'] }),
       )
@@ -83,7 +125,11 @@ export function useCompleteTask() {
     onError: (_e, _t, ctx) => {
       if (ctx?.prev) qc.setQueryData(['tasks'], ctx.prev);
     },
-    onSettled: () => qc.invalidateQueries({ queryKey: ['tasks'] }),
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ['tasks'] });
+      qc.invalidateQueries({ queryKey: ['tasks-completed'] });
+      qc.invalidateQueries({ queryKey: ['tasks-completed-since'] });
+    },
   });
 }
 
@@ -91,7 +137,11 @@ export function useUncompleteTask() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => uncompleteTask(supabase, id),
-    onSettled: () => qc.invalidateQueries({ queryKey: ['tasks'] }),
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ['tasks'] });
+      qc.invalidateQueries({ queryKey: ['tasks-completed'] });
+      qc.invalidateQueries({ queryKey: ['tasks-completed-since'] });
+    },
   });
 }
 
