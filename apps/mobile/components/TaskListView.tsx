@@ -68,10 +68,15 @@ export function TaskListView({
   }
 
   // Dragging is only offered where a dropped position will actually survive:
-  // manual sort, and a plain list with no section headers to move between.
-  const single = prepared.length === 1 && prepared[0].title === null;
-  if (canReorder(sortBy) && single && prepared[0].data.length > 1) {
-    const top = sortTasksBy(sections[0].data.filter((task) => !task.parent_id), sortBy);
+  // manual sort, and a single visible untitled list with no other section to
+  // move between. Views like Today pass placeholder sections that may be
+  // empty (Overdue with nothing in it), so only sections that actually hold
+  // rows count here, and the data comes from that section, not sections[0].
+  const visible = prepared.filter((s) => s.data.length > 0);
+  const single = visible.length === 1 && visible[0].title === null;
+  if (canReorder(sortBy) && single && visible[0].data.length > 1) {
+    const source = sections.find((s) => s.data.some((task) => task.id === visible[0].data[0].task.id));
+    const top = sortTasksBy((source ?? sections[0]).data.filter((task) => !task.parent_id), sortBy);
     return (
       <DraggableTaskList
         groups={top.map((task) => ({

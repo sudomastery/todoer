@@ -1,13 +1,5 @@
-import { useMemo, useRef, useState } from 'react';
-import {
-  Animated,
-  PanResponder,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { useRef, useState } from 'react';
+import { Animated, PanResponder, ScrollView, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { reorderSortOrders, type Label, type Project, type TaskWithLabels } from '@todoer/shared';
 import { TaskRow } from './TaskRow';
@@ -18,12 +10,59 @@ interface Group {
   subtasks: TaskWithLabels[];
 }
 
+interface DragCallbacks {
+  onGrant: (index: number) => void;
+  onMove: (dy: number) => void;
+  onRelease: (dy: number) => void;
+  onTerminate: () => void;
+}
+
 /**
- * Manual ordering by dragging.
- *
- * Only the grip claims the gesture, so the list still scrolls normally when
- * the finger lands anywhere else. Subtasks travel with their parent: the unit
- * being moved is the whole group, not an individual row.
+ * The grip for one row. The PanResponder is created exactly once per mounted
+ * row and reads everything through refs: recreating it on render replaces the
+ * handlers in the middle of the gesture, which is why the first version of
+ * this list never received the move events (verified on the emulator).
+ */
+function DragHandle({
+  index,
+  active,
+  callbacks,
+}: {
+  index: number;
+  active: boolean;
+  callbacks: React.MutableRefObject<DragCallbacks>;
+}) {
+  const t = useTheme();
+  const indexRef = useRef(index);
+  indexRef.current = index;
+
+  const responder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderTerminationRequest: () => false,
+      onPanResponderGrant: () => callbacks.current.onGrant(indexRef.current),
+      onPanResponderMove: (_e, g) => callbacks.current.onMove(g.dy),
+      onPanResponderRelease: (_e, g) => callbacks.current.onRelease(g.dy),
+      onPanResponderTerminate: () => callbacks.current.onTerminate(),
+    }),
+  ).current;
+
+  return (
+    <View
+      {...responder.panHandlers}
+      hitSlop={{ top: 10, bottom: 10, left: 14, right: 10 }}
+      style={styles.handle}
+    >
+      <Ionicons name="reorder-three-outline" size={22} color={active ? t.brand : t.fgFaint} />
+    </View>
+  );
+}
+
+/**
+ * Manual ordering by dragging. Only the grip claims the gesture, so the list
+ * still scrolls normally when the finger lands anywhere else. Subtasks travel
+ * with their parent: the unit being moved is the whole group.
  */
 export function DraggableTaskList({
   groups,
@@ -45,15 +84,13 @@ export function DraggableTaskList({
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
 
-  // Measured geometry of each group, keyed by position, so the drop target can
-  // be worked out with rows of different heights.
+  // Geometry and gesture state live in refs so the stable PanResponder
+  // callbacks always see current values.
   const layouts = useRef<{ y: number; height: number }[]>([]);
-  // Mirrors of the drag state that the responder callbacks can read without
-  // going stale between renders.
+  const groupsRef = useRef(groups);
+  groupsRef.current = groups;
   const dragFrom = useRef<number | null>(null);
   const hoverTo = useRef<number | null>(null);
-
-  const tasks = useMemo(() => groups.map((g) => g.task), [groups]);
 
   function targetIndexFor(dy: number): number {
     const from = dragFrom.current;
@@ -69,47 +106,48 @@ export function DraggableTaskList({
     return layouts.current.length - 1;
   }
 
-  function makeResponder(index: number) {
-    return PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      // Claim the gesture so the surrounding ScrollView does not steal it.
-      onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: () => {
-        dragFrom.current = index;
-        hoverTo.current = index;
-        setDragIndex(index);
-        setHoverIndex(index);
-        dragY.setValue(0);
-      },
-      onPanResponderMove: (_e, gesture) => {
-        dragY.setValue(gesture.dy);
-        const next = targetIndexFor(gesture.dy);
-        if (next !== hoverTo.current) {
-          hoverTo.current = next;
-          setHoverIndex(next);
-        }
-      },
-      onPanResponderRelease: () => {
-        const from = dragFrom.current;
-        const to = hoverTo.current;
-        dragFrom.current = null;
-        hoverTo.current = null;
-        setDragIndex(null);
-        setHoverIndex(null);
-        dragY.setValue(0);
-        if (from === null || to === null || from === to) return;
-        const updates = reorderSortOrders(tasks, from, to);
-        if (updates.length > 0) onReorder(updates);
-      },
-      onPanResponderTerminate: () => {
-        dragFrom.current = null;
-        hoverTo.current = null;
-        setDragIndex(null);
-        setHoverIndex(null);
-        dragY.setValue(0);
-      },
-    });
+  function endDrag() {
+    dragFrom.current = null;
+    hoverTo.current = null;
+    setDragIndex(null);
+    setHoverIndex(null);
+    dragY.setValue(0);
   }
+
+  // One shared, always-current set of callbacks for every row's responder.
+  const callbacks = useRef<DragCallbacks>({
+    onGrant: () => undefined,
+    onMove: () => undefined,
+    onRelease: () => undefined,
+    onTerminate: () => undefined,
+  });
+  callbacks.current = {
+    onGrant: (index) => {
+      dragFrom.current = index;
+      hoverTo.current = index;
+      setDragIndex(index);
+      setHoverIndex(index);
+      dragY.setValue(0);
+    },
+    onMove: (dy) => {
+      dragY.setValue(dy);
+      const next = targetIndexFor(dy);
+      if (next !== hoverTo.current) {
+        hoverTo.current = next;
+        setHoverIndex(next);
+      }
+    },
+    onRelease: (dy) => {
+      const from = dragFrom.current;
+      const to = targetIndexFor(dy);
+      endDrag();
+      if (from === null || from === to) return;
+      const tasks = groupsRef.current.map((g) => g.task);
+      const updates = reorderSortOrders(tasks, from, to);
+      if (updates.length > 0) onReorder(updates);
+    },
+    onTerminate: endDrag,
+  };
 
   return (
     <ScrollView
@@ -130,16 +168,18 @@ export function DraggableTaskList({
           >
             {showLine && <View style={[styles.dropLine, { backgroundColor: t.brand }]} />}
             <Animated.View
-              style={[
-                isDragging && {
-                  transform: [{ translateY: dragY }],
-                  zIndex: 10,
-                  elevation: 8,
-                  opacity: 0.95,
-                  backgroundColor: t.bgElevated,
-                  borderRadius: 8,
-                },
-              ]}
+              style={
+                isDragging
+                  ? {
+                      transform: [{ translateY: dragY }],
+                      zIndex: 10,
+                      elevation: 8,
+                      opacity: 0.95,
+                      backgroundColor: t.bgElevated,
+                      borderRadius: 8,
+                    }
+                  : undefined
+              }
             >
               <View style={styles.row}>
                 <View style={styles.rowBody}>
@@ -151,17 +191,7 @@ export function DraggableTaskList({
                     showProject={showProject}
                   />
                 </View>
-                <View
-                  {...makeResponder(index).panHandlers}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  style={styles.handle}
-                >
-                  <Ionicons
-                    name="reorder-three-outline"
-                    size={20}
-                    color={isDragging ? t.brand : t.fgFaint}
-                  />
-                </View>
+                <DragHandle index={index} active={isDragging} callbacks={callbacks} />
               </View>
               {group.subtasks.map((sub) => (
                 <TaskRow
@@ -181,19 +211,9 @@ export function DraggableTaskList({
   );
 }
 
-/** Shown when a list is long enough that dragging is worth mentioning. */
-export function ReorderHint({ visible }: { visible: boolean }) {
-  const t = useTheme();
-  if (!visible) return null;
-  return (
-    <Text style={[styles.hint, { color: t.fgFaint }]}>Hold the grip to reorder</Text>
-  );
-}
-
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center' },
   rowBody: { flex: 1 },
-  handle: { paddingHorizontal: 6, paddingVertical: 12 },
+  handle: { paddingHorizontal: 8, paddingVertical: 14 },
   dropLine: { height: 2, borderRadius: 1, marginVertical: 1 },
-  hint: { fontSize: 12, paddingHorizontal: 16, paddingTop: 8 },
 });
