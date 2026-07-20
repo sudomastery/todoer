@@ -9,13 +9,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
  * task. Three button navigation reports roughly 48dp and gesture navigation
  * around 16dp, but some devices report nothing at all, hence the floor.
  *
- * Pass the keyboard offset when a surface already shifts up for the keyboard:
- * the navigation bar is behind the keyboard at that point, so adding the inset
- * as well would leave a visible gap.
+ * Kept when the keyboard is open too: the keyboard height Android reports to
+ * React Native comes up short of the real overlap by about the navigation
+ * inset, which left the send button half buried under the IME (verified on
+ * the emulator). Padding by inset plus keyboard offset lands the control just
+ * above the keys on every nav mode; the worst case is a few spare pixels.
  */
-export function useBottomInset(keyboardOffset = 0): number {
+export function useBottomInset(_keyboardOffset = 0): number {
   const insets = useSafeAreaInsets();
-  if (keyboardOffset > 0) return 0;
   return Math.max(insets.bottom, 8);
 }
 

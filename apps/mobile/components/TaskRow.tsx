@@ -1,4 +1,5 @@
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import {
@@ -11,6 +12,7 @@ import {
   type Project,
   type TaskWithLabels,
 } from '@todoer/shared';
+import { ConfirmSheet } from './ConfirmSheet';
 import { useCompleteTask, useDeleteTask } from '../lib/hooks';
 import { useTheme } from '../lib/theme';
 
@@ -31,6 +33,7 @@ export function TaskRow({
   const router = useRouter();
   const completeTask = useCompleteTask();
   const deleteTask = useDeleteTask();
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   const priorityColor = task.priority < 4 ? PRIORITY_COLORS[task.priority] : t.fgFaint;
   const overdue = task.due_date ? isOverdue(task.due_date) : false;
@@ -40,16 +43,7 @@ export function TaskRow({
   return (
     <Pressable
       onPress={() => router.push(`/task/${task.id}`)}
-      onLongPress={() =>
-        Alert.alert(task.content, undefined, [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Delete task',
-            style: 'destructive',
-            onPress: () => deleteTask.mutate(task.id),
-          },
-        ])
-      }
+      onLongPress={() => setConfirmingDelete(true)}
       style={({ pressed }) => [
         styles.row,
         { borderBottomColor: t.border, marginLeft: depth * 28 },
@@ -111,6 +105,17 @@ export function TaskRow({
         )}
       </View>
       {task.priority < 4 && <Ionicons name="flag" size={14} color={priorityColor} />}
+      <ConfirmSheet
+        visible={confirmingDelete}
+        title={task.content}
+        message="This task will be deleted forever."
+        confirmLabel="Delete task"
+        onConfirm={() => {
+          setConfirmingDelete(false);
+          deleteTask.mutate(task.id);
+        }}
+        onCancel={() => setConfirmingDelete(false)}
+      />
     </Pressable>
   );
 }
