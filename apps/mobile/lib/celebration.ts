@@ -42,9 +42,16 @@ function enqueue<T>(fn: () => Promise<T>): Promise<T> {
   return result;
 }
 
-export function recordCompletion(): Promise<Milestone | null> {
+export interface RecordedCompletion {
+  /** The local day this completion was actually counted against. */
+  day: string;
+  milestone: Milestone | null;
+}
+
+export function recordCompletion(): Promise<RecordedCompletion> {
   return enqueue(async () => {
-    const key = `${KEY_PREFIX}${todayISO()}`;
+    const day = todayISO();
+    const key = `${KEY_PREFIX}${day}`;
     let count = 0;
     try {
       count = Number((await AsyncStorage.getItem(key)) ?? '0');
@@ -59,24 +66,28 @@ export function recordCompletion(): Promise<Milestone | null> {
     }
     const milestone = completionMilestone(next);
     if (milestone && handler) handler({ milestone });
-    return milestone;
+    return { day, milestone };
   });
 }
 
 /**
  * Called if the completion this counted turns out to have failed on the
- * server. Decrements the counter, and if it had shown a celebration, asks
- * the UI to retract it.
+ * server. Decrements the counter for the day it was actually recorded
+ * against, not "today" (recomputing the day here would decrement the wrong
+ * one if the completion and its failure straddle local midnight). If it had
+ * shown a celebration, also asks the UI to retract it.
  */
-export function undoCompletion(shownMilestone: Milestone | null): Promise<void> {
+export function undoCompletion(recorded: RecordedCompletion | null): Promise<void> {
+  if (!recorded) return Promise.resolve();
+  const { day, milestone } = recorded;
   return enqueue(async () => {
-    const key = `${KEY_PREFIX}${todayISO()}`;
+    const key = `${KEY_PREFIX}${day}`;
     try {
       const count = Number((await AsyncStorage.getItem(key)) ?? '0');
       await AsyncStorage.setItem(key, String(Math.max(0, count - 1)));
     } catch {
       // best effort, same as recordCompletion
     }
-    if (shownMilestone && handler) handler({ retract: shownMilestone });
+    if (milestone && handler) handler({ retract: milestone });
   });
 }
