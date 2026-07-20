@@ -205,13 +205,23 @@ export function useCompleteTask() {
       // Captured so a failed completion can retract exactly the milestone
       // it showed, rather than leaving a false celebration on screen.
       const recorded = recordCompletion();
-      await qc.cancelQueries({ queryKey: ['tasks'] });
-      const prev = qc.getQueryData<TaskWithLabels[]>(['tasks']);
-      if (prev && !task.recurrence) {
-        qc.setQueryData(
-          ['tasks'],
-          prev.filter((t) => t.id !== task.id && t.parent_id !== task.id),
-        );
+      // Everything after the count is best effort. If a cache call throws,
+      // onMutate must still return the context, otherwise TanStack Query
+      // hands onError an undefined context and the completion just counted
+      // can never be undone or retracted.
+      let prev: TaskWithLabels[] | undefined;
+      try {
+        await qc.cancelQueries({ queryKey: ['tasks'] });
+        prev = qc.getQueryData<TaskWithLabels[]>(['tasks']);
+        if (prev && !task.recurrence) {
+          qc.setQueryData(
+            ['tasks'],
+            prev.filter((t) => t.id !== task.id && t.parent_id !== task.id),
+          );
+        }
+      } catch {
+        // the completion itself still goes ahead; only the optimistic
+        // list update is skipped
       }
       return { prev, recorded };
     },

@@ -219,6 +219,33 @@ console.log('== celebration milestones ==');
   check('milestones carry copy', !!completionMilestone(3)?.title && !!completionMilestone(3)?.message && !!completionMilestone(15)?.title);
 }
 
+console.log('== celebration shared helpers ==');
+{
+  const { parseCount, shouldRetract, completionKey } = await import(
+    '../packages/shared/src/celebration.ts'
+  );
+
+  check('parseCount reads a normal value', parseCount('7') === 7);
+  check('parseCount treats a missing value as zero', parseCount(null) === 0);
+  check('parseCount treats undefined as zero', parseCount(undefined) === 0);
+  check('parseCount treats an empty string as zero', parseCount('') === 0);
+  // The bug this guards: 'NaN' used to round-trip through Number()/String()
+  // and permanently kill a day's counter.
+  check('parseCount heals a stored NaN', parseCount('NaN') === 0);
+  check('parseCount heals arbitrary junk', parseCount('garbage') === 0);
+  check('parseCount rejects negatives', parseCount('-3') === 0);
+  check('parseCount floors fractions', parseCount('2.9') === 2);
+
+  const m3 = { count: 3, title: 'a', message: 'b' };
+  const m5 = { count: 5, title: 'c', message: 'd' };
+  check('shouldRetract matches the shown milestone', shouldRetract(m3, m3) === true);
+  check('shouldRetract matches by count across object identities', shouldRetract({ ...m3 }, m3) === true);
+  check('shouldRetract spares a different milestone', shouldRetract(m5, m3) === false);
+  check('shouldRetract is a no-op when nothing is shown', shouldRetract(null, m3) === false);
+
+  check('completionKey is namespaced per day', completionKey('2026-07-20') === 'todoer.completions.2026-07-20');
+}
+
 console.log('== celebration retract bridge (web) ==');
 {
   // In-memory localStorage shim so the actual web module can be imported and
@@ -249,20 +276,23 @@ console.log('== celebration retract bridge (web) ==');
   const fourth = mod.recordCompletion();
   check('counter reflects the undo: next completion is 3rd again', fourth.milestone?.count === 3, JSON.stringify(fourth));
 
-  // A completion that succeeds (no milestone) has nothing to retract on
-  // failure, so undoCompletion(null) must decrement quietly with no event.
-  for (let i = 0; i < 2; i++) mod.recordCompletion(); // now at 6, no milestone
+  // A non-milestone completion still has to reverse its own count on
+  // failure, so assert the stored number, not just the absence of an event.
+  const todayKey = `todoer.completions.${todayISO()}`;
+  const fifth = mod.recordCompletion(); // 4, no milestone
+  check('non-milestone completion still counts', store.get(todayKey) === '4', store.get(todayKey));
   events.length = 0;
-  mod.undoCompletion(null);
-  check('undoCompletion(null) fires no event', events.length === 0, JSON.stringify(events));
+  mod.undoCompletion(fifth);
+  check('undoing a non-milestone completion decrements', store.get(todayKey) === '3', store.get(todayKey));
+  check('undoing a non-milestone completion fires no event', events.length === 0, JSON.stringify(events));
 
   // A completion recorded on a past day (e.g. its failure was reported after
   // local midnight) must decrement THAT day's counter, not today's, even
   // though today's key is what a naive re-lookup would touch.
   const staleDay = '2020-01-01';
   store.set(`todoer.completions.${staleDay}`, '5');
-  const todayBefore = store.get(`todoer.completions.${todayISO()}`);
-  mod.undoCompletion({ day: staleDay, milestone: null });
+  const todayBefore = store.get(todayKey);
+  mod.undoCompletion({ day: staleDay, milestone: null, counted: true });
   check(
     'undo decrements the recorded day, not today',
     store.get(`todoer.completions.${staleDay}`) === '4',
@@ -270,8 +300,47 @@ console.log('== celebration retract bridge (web) ==');
   );
   check(
     "undo for a stale day leaves today's counter untouched",
-    store.get(`todoer.completions.${todayISO()}`) === todayBefore,
+    store.get(todayKey) === todayBefore,
   );
+
+  // An increment that never reached storage must not be decremented later,
+  // or the counter drifts below the true number of completions.
+  const beforeUncounted = store.get(todayKey);
+  mod.undoCompletion({ day: todayISO(), milestone: null, counted: false });
+  check(
+    'undo skips the decrement when the count never persisted',
+    store.get(todayKey) === beforeUncounted,
+    store.get(todayKey),
+  );
+
+  // A handler that throws is a broken celebration, not a broken app: it must
+  // never escape into the mutation that is completing the task.
+  const restore = mod.registerCelebrationHandler(() => {
+    throw new Error('UI render bug');
+  });
+  let threw = false;
+  try {
+    store.set(todayKey, '2');
+    mod.recordCompletion(); // 3 -> fires the milestone handler
+  } catch {
+    threw = true;
+  }
+  check('a throwing handler does not escape recordCompletion', !threw);
+  try {
+    mod.undoCompletion({ day: todayISO(), milestone: { count: 3, title: 'x', message: 'y' }, counted: true });
+  } catch {
+    threw = true;
+  }
+  check('a throwing handler does not escape undoCompletion', !threw);
+  restore();
+
+  // A corrupt stored value must self-heal rather than poisoning every later
+  // read: without this the literal 'NaN' persists and kills the day.
+  mod.registerCelebrationHandler((e) => events.push(e));
+  store.set(todayKey, 'garbage');
+  const healed = mod.recordCompletion();
+  check('a corrupt counter resets to 1 rather than NaN', store.get(todayKey) === '1', store.get(todayKey));
+  check('a corrupt counter still yields a usable record', healed.counted === true && healed.day === todayISO());
 
   delete globalThis.localStorage;
 }
