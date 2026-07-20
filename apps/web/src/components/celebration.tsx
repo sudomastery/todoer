@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Trophy } from 'lucide-react';
-import { CONFETTI_COLORS, type Milestone } from '@todoer/shared';
+import { CONFETTI_COLORS, shouldRetract, type Milestone } from '@todoer/shared';
 import { registerCelebrationHandler } from '@/lib/celebration';
 
 const PIECE_COUNT = 60;
@@ -46,10 +46,7 @@ export function Celebration() {
         if ('milestone' in e) {
           setMilestone(e.milestone);
         } else {
-          // Only clear if the retracted milestone is still the one showing:
-          // a later, unrelated celebration must not be clobbered by a
-          // straggling retract from an earlier failed completion.
-          setMilestone((cur) => (cur && cur.count === e.retract.count ? null : cur));
+          setMilestone((cur) => (shouldRetract(cur, e.retract) ? null : cur));
         }
       }),
     [],

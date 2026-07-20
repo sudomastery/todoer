@@ -35,6 +35,54 @@ export function completionMilestone(countToday: number): Milestone | null {
   return null;
 }
 
+/**
+ * What one counted completion produced. Handed back by each platform's
+ * recordCompletion and passed to undoCompletion if the completion turns out
+ * to have failed on the server.
+ */
+export interface RecordedCompletion {
+  /** The local day this completion was actually counted against. */
+  day: string;
+  /** The milestone it earned, if any. */
+  milestone: Milestone | null;
+  /**
+   * Whether the incremented count actually reached storage. A write that
+   * failed must not be undone later, or the counter drifts below the true
+   * number of completions.
+   */
+  counted: boolean;
+}
+
+/** Show a celebration, or retract one already shown. */
+export type CelebrationEvent = { milestone: Milestone } | { retract: Milestone };
+
+const KEY_PREFIX = 'todoer.completions.';
+
+/** Storage key holding the completion count for a given local day. */
+export function completionKey(day: string): string {
+  return `${KEY_PREFIX}${day}`;
+}
+
+/**
+ * Reads a stored counter. Anything not a usable count (missing, corrupt, a
+ * stale 'NaN' from an older write) falls back to zero rather than poisoning
+ * every later read: without this a single bad value would persist as 'NaN'
+ * and silently kill that day's celebrations for good.
+ */
+export function parseCount(raw: string | null | undefined): number {
+  const n = Number(raw ?? '0');
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+}
+
+/**
+ * Whether a retract should clear what is currently on screen. A retract must
+ * only hide the celebration it targets, never a different one that has since
+ * taken its place.
+ */
+export function shouldRetract(current: Milestone | null, retract: Milestone): boolean {
+  return current !== null && current.count === retract.count;
+}
+
 /** Confetti palette, drawn from the app's priority and project colors. */
 export const CONFETTI_COLORS = [
   '#dc4c3e',
