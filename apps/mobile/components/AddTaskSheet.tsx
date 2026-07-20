@@ -12,6 +12,7 @@ import {
 import { DateGrid } from './DateGrid';
 import { TimeRow } from './TimeRow';
 import { useProjects, useQuickAdd } from '../lib/hooks';
+import { useBottomInset, useSheetMaxHeight } from '../lib/insets';
 import { useKeyboardOffset } from '../lib/keyboard';
 import { useTheme } from '../lib/theme';
 
@@ -33,6 +34,8 @@ export function AddTaskSheet({
   const { data: projects } = useProjects();
   const [text, setText] = useState('');
   const { offset, onLayout } = useKeyboardOffset();
+  const bottomInset = useBottomInset(offset);
+  const detailsMaxHeight = useSheetMaxHeight(0.45);
 
   // undefined means "whatever the typed text says"; an explicit choice wins.
   const [dueOverride, setDueOverride] = useState<string | null | undefined>(undefined);
@@ -92,7 +95,12 @@ export function AddTaskSheet({
     >
       <View style={[styles.root, { paddingBottom: offset }]} onLayout={onLayout}>
         <Pressable style={styles.backdrop} onPress={onClose} />
-        <View style={[styles.sheet, { backgroundColor: t.bgElevated }]}>
+        <View
+          style={[
+            styles.sheet,
+            { backgroundColor: t.bgElevated, paddingBottom: 16 + bottomInset },
+          ]}
+        >
           <TextInput
             autoFocus
             value={text}
@@ -146,7 +154,7 @@ export function AddTaskSheet({
           </View>
 
           {showDetails && (
-            <ScrollView style={{ maxHeight: 340 }} keyboardShouldPersistTaps="handled">
+            <ScrollView style={{ maxHeight: detailsMaxHeight }} keyboardShouldPersistTaps="handled">
               <DateGrid value={effDue} onChange={setDueOverride} />
               {effDue && (
                 <>
@@ -230,7 +238,6 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     padding: 16,
-    paddingBottom: 28,
   },
   input: { fontSize: 16, fontWeight: '500', paddingVertical: 4 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 },

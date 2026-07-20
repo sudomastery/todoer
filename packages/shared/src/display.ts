@@ -66,10 +66,16 @@ export function filterTasks(tasks: TaskWithLabels[], prefs: DisplayPrefs): TaskW
 }
 
 export function sortTasksBy(tasks: TaskWithLabels[], sortBy: SortBy): TaskWithLabels[] {
+  // Manual is the order the user dragged tasks into, so it cannot lead with
+  // priority: doing that would snap a task dragged below a higher priority one
+  // straight back. Priority ordering is its own sort option.
   const manual = (a: TaskWithLabels, b: TaskWithLabels) => {
-    if (a.priority !== b.priority) return a.priority - b.priority;
     if (a.sort_order !== b.sort_order) return a.sort_order - b.sort_order;
     return a.created_at.localeCompare(b.created_at);
+  };
+  const byPriority = (a: TaskWithLabels, b: TaskWithLabels) => {
+    if (a.priority !== b.priority) return a.priority - b.priority;
+    return manual(a, b);
   };
   const byDate = (a: TaskWithLabels, b: TaskWithLabels) => {
     if (!a.due_date && !b.due_date) return manual(a, b);
@@ -84,11 +90,44 @@ export function sortTasksBy(tasks: TaskWithLabels[], sortBy: SortBy): TaskWithLa
   const cmp: Record<SortBy, (a: TaskWithLabels, b: TaskWithLabels) => number> = {
     manual,
     date: byDate,
-    priority: manual,
+    priority: byPriority,
     name: (a, b) => a.content.localeCompare(b.content) || manual(a, b),
     added: (a, b) => a.created_at.localeCompare(b.created_at),
   };
   return [...tasks].sort(cmp[sortBy]);
+}
+
+/** Whether a drag handle should do anything under the current sort. */
+export function canReorder(sortBy: SortBy): boolean {
+  return sortBy === 'manual';
+}
+
+/**
+ * The sort_order values needed to move one item within a list.
+ *
+ * The list is renumbered from zero, but only the entries that actually change
+ * are returned, so dragging near the end of a long list writes a few rows
+ * rather than all of them. Returns nothing when the move is a no-op or the
+ * indexes fall outside the list.
+ */
+export function reorderSortOrders<T extends { id: string; sort_order: number }>(
+  items: T[],
+  fromIndex: number,
+  toIndex: number,
+): { id: string; sort_order: number }[] {
+  if (fromIndex === toIndex) return [];
+  if (fromIndex < 0 || fromIndex >= items.length) return [];
+  if (toIndex < 0 || toIndex >= items.length) return [];
+
+  const next = [...items];
+  const [moved] = next.splice(fromIndex, 1);
+  next.splice(toIndex, 0, moved);
+
+  const updates: { id: string; sort_order: number }[] = [];
+  next.forEach((item, index) => {
+    if (item.sort_order !== index) updates.push({ id: item.id, sort_order: index });
+  });
+  return updates;
 }
 
 export interface TaskGroup {

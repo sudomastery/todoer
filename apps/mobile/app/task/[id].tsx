@@ -33,6 +33,7 @@ import {
 } from '../../lib/hooks';
 import { AddTaskSheet } from '../../components/AddTaskSheet';
 import { TaskEditSheet } from '../../components/TaskEditSheet';
+import { useBottomInset } from '../../lib/insets';
 import { useKeyboardOffset } from '../../lib/keyboard';
 import { useTheme } from '../../lib/theme';
 
@@ -40,6 +41,7 @@ export default function TaskDetailScreen() {
   const t = useTheme();
   const router = useRouter();
   const { offset, onLayout } = useKeyboardOffset();
+  const bottomInset = useBottomInset(offset);
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: active } = useActiveTasks();
   const { data: completedTasks } = useCompletedTasks();
@@ -234,7 +236,12 @@ export default function TaskDetailScreen() {
         parentId={task.id}
       />
 
-      <View style={[styles.composer, { borderTopColor: t.border, backgroundColor: t.bg }]}>
+      <View
+        style={[
+          styles.composer,
+          { borderTopColor: t.border, backgroundColor: t.bg, paddingBottom: 12 + bottomInset },
+        ]}
+      >
         <TextInput
           value={commentText}
           onChangeText={setCommentText}

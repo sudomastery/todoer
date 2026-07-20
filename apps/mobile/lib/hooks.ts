@@ -27,6 +27,7 @@ import {
   updateProject,
   updateSection,
   deleteProject,
+  reorderTasks,
   updateTask,
   type Priority,
   type Project,
@@ -165,6 +166,32 @@ export function useUpdateTask() {
   return useMutation({
     mutationFn: ({ id, patch }: { id: string; patch: UpdateTaskInput }) =>
       updateTask(supabase, id, patch),
+    onSettled: () => qc.invalidateQueries({ queryKey: ['tasks'] }),
+  });
+}
+
+export function useReorderTasks() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (updates: { id: string; sort_order: number }[]) =>
+      reorderTasks(supabase, updates),
+    // Written straight into the cache so the dropped row holds its new place
+    // rather than springing back while the updates are in flight.
+    onMutate: async (updates) => {
+      await qc.cancelQueries({ queryKey: ['tasks'] });
+      const prev = qc.getQueryData<TaskWithLabels[]>(['tasks']);
+      if (prev) {
+        const next = new Map(updates.map((u) => [u.id, u.sort_order]));
+        qc.setQueryData(
+          ['tasks'],
+          prev.map((t) => (next.has(t.id) ? { ...t, sort_order: next.get(t.id)! } : t)),
+        );
+      }
+      return { prev };
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(['tasks'], ctx.prev);
+    },
     onSettled: () => qc.invalidateQueries({ queryKey: ['tasks'] }),
   });
 }
