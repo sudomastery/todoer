@@ -7,6 +7,7 @@ import { useActiveTasks, useRealtimeSync } from '@/lib/hooks';
 import { runNotificationTick } from '@/lib/notifications';
 import { useUser } from '@/lib/use-user';
 import { Sidebar } from '@/components/sidebar';
+import { Celebration } from '@/components/celebration';
 import { QuickAddDialog } from '@/components/quick-add-dialog';
 import { SearchDialog } from '@/components/search-dialog';
 import { IconButton } from '@/components/ui';
@@ -91,6 +92,7 @@ function ShellInner({ children }: { children: React.ReactNode }) {
         </main>
       </div>
 
+      <Celebration />
       <QuickAddDialog open={quickAddOpen} onOpenChange={setQuickAddOpen} />
       <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
     </ShellContext.Provider>
