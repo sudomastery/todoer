@@ -40,7 +40,20 @@ export function Celebration() {
   const [milestone, setMilestone] = useState<Milestone | null>(null);
   const pieces = useMemo(() => (milestone ? makePieces() : []), [milestone]);
 
-  useEffect(() => registerCelebrationHandler(setMilestone), []);
+  useEffect(
+    () =>
+      registerCelebrationHandler((e) => {
+        if ('milestone' in e) {
+          setMilestone(e.milestone);
+        } else {
+          // Only clear if the retracted milestone is still the one showing:
+          // a later, unrelated celebration must not be clobbered by a
+          // straggling retract from an earlier failed completion.
+          setMilestone((cur) => (cur && cur.count === e.retract.count ? null : cur));
+        }
+      }),
+    [],
+  );
 
   useEffect(() => {
     if (!milestone) return;

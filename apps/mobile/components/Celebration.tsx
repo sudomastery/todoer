@@ -80,9 +80,16 @@ export function Celebration() {
 
   useEffect(
     () =>
-      registerCelebrationHandler((m) => {
-        setPieces(makePieces(width));
-        setMilestone(m);
+      registerCelebrationHandler((e) => {
+        if ('milestone' in e) {
+          setPieces(makePieces(width));
+          setMilestone(e.milestone);
+        } else {
+          // Only clear if the retracted milestone is still the one showing:
+          // a later, unrelated celebration must not be clobbered by a
+          // straggling retract from an earlier failed completion.
+          setMilestone((cur) => (cur && cur.count === e.retract.count ? null : cur));
+        }
       }),
     [width],
   );
