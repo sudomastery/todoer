@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Modal, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { CONFETTI_COLORS, type Milestone } from '@todoer/shared';
+import { CONFETTI_COLORS, shouldRetract, type Milestone } from '@todoer/shared';
 import { registerCelebrationHandler } from '../lib/celebration';
 import { useTheme } from '../lib/theme';
 
@@ -85,10 +85,7 @@ export function Celebration() {
           setPieces(makePieces(width));
           setMilestone(e.milestone);
         } else {
-          // Only clear if the retracted milestone is still the one showing:
-          // a later, unrelated celebration must not be clobbered by a
-          // straggling retract from an earlier failed completion.
-          setMilestone((cur) => (cur && cur.count === e.retract.count ? null : cur));
+          setMilestone((cur) => (shouldRetract(cur, e.retract) ? null : cur));
         }
       }),
     [width],
