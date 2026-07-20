@@ -219,6 +219,45 @@ console.log('== celebration milestones ==');
   check('milestones carry copy', !!completionMilestone(3)?.title && !!completionMilestone(3)?.message && !!completionMilestone(15)?.title);
 }
 
+console.log('== celebration retract bridge (web) ==');
+{
+  // In-memory localStorage shim so the actual web module can be imported and
+  // exercised under plain node, no browser needed.
+  const store = new Map();
+  globalThis.localStorage = {
+    getItem: (k) => (store.has(k) ? store.get(k) : null),
+    setItem: (k, v) => store.set(k, v),
+  };
+  const mod = await import('../apps/web/src/lib/celebration.ts');
+  const events = [];
+  mod.registerCelebrationHandler((e) => events.push(e));
+
+  for (let i = 0; i < 2; i++) mod.recordCompletion();
+  check('no event before the first milestone', events.length === 0, JSON.stringify(events));
+
+  const third = mod.recordCompletion();
+  check('3rd completion returns the milestone', third?.count === 3, JSON.stringify(third));
+  check('3rd completion fires a show event', events.length === 1 && 'milestone' in events[0]);
+
+  // A completion that later fails must retract exactly the milestone it
+  // showed, not silently leave the celebration up.
+  mod.undoCompletion(third);
+  check('failed completion fires a retract event', events.length === 2 && 'retract' in events[1]);
+  check('retract carries the same milestone', events[1].retract?.count === 3);
+
+  const fourth = mod.recordCompletion();
+  check('counter reflects the undo: next completion is 3rd again', fourth?.count === 3, JSON.stringify(fourth));
+
+  // A completion that succeeds (no milestone) has nothing to retract on
+  // failure, so undoCompletion(null) must decrement quietly with no event.
+  for (let i = 0; i < 2; i++) mod.recordCompletion(); // now at 6, no milestone
+  events.length = 0;
+  mod.undoCompletion(null);
+  check('undoCompletion(null) fires no event', events.length === 0, JSON.stringify(events));
+
+  delete globalThis.localStorage;
+}
+
 console.log('== notifications ==');
 {
   const prefs = { ...DEFAULT_NOTIFICATION_PREFS, enabled: true, leadMinutes: 10 };
