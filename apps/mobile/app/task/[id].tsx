@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import {
-  Alert,
   Keyboard,
   Pressable,
   ScrollView,
@@ -34,6 +33,7 @@ import {
 import { AddTaskSheet } from '../../components/AddTaskSheet';
 import { TaskEditSheet } from '../../components/TaskEditSheet';
 import { useBottomInset } from '../../lib/insets';
+import { ConfirmSheet } from '../../components/ConfirmSheet';
 import { useKeyboardOffset } from '../../lib/keyboard';
 import { useTheme } from '../../lib/theme';
 
@@ -54,6 +54,7 @@ export default function TaskDetailScreen() {
   const addComment = useAddComment();
   const deleteComment = useDeleteComment();
   const [commentText, setCommentText] = useState('');
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [editing, setEditing] = useState(false);
   const [addingSubtask, setAddingSubtask] = useState(false);
 
@@ -208,19 +209,7 @@ export default function TaskDetailScreen() {
         )}
 
         <Pressable
-          onPress={() =>
-            Alert.alert('Delete task', `Delete "${task.content}"?`, [
-              { text: 'Cancel', style: 'cancel' },
-              {
-                text: 'Delete',
-                style: 'destructive',
-                onPress: () => {
-                  deleteTask.mutate(task.id);
-                  router.back();
-                },
-              },
-            ])
-          }
+          onPress={() => setConfirmingDelete(true)}
           style={[styles.deleteBtn, { borderColor: '#d1453b' }]}
         >
           <Ionicons name="trash-outline" size={16} color="#d1453b" />
@@ -228,6 +217,18 @@ export default function TaskDetailScreen() {
         </Pressable>
       </ScrollView>
 
+      <ConfirmSheet
+        visible={confirmingDelete}
+        title={task.content}
+        message="This task will be deleted forever."
+        confirmLabel="Delete task"
+        onConfirm={() => {
+          setConfirmingDelete(false);
+          deleteTask.mutate(task.id);
+          router.back();
+        }}
+        onCancel={() => setConfirmingDelete(false)}
+      />
       <TaskEditSheet task={task} visible={editing} onClose={() => setEditing(false)} />
       <AddTaskSheet
         visible={addingSubtask}
