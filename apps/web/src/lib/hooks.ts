@@ -202,7 +202,9 @@ export function useCompleteTask() {
     // run once the component that registered it is gone.
     onMutate: async (task) => {
       playCompletionSound();
-      recordCompletion();
+      // Captured so a failed completion can retract exactly the milestone
+      // it showed, rather than leaving a false celebration on screen.
+      const milestone = recordCompletion();
       await qc.cancelQueries({ queryKey: ['tasks'] });
       const prev = qc.getQueryData<TaskWithLabels[]>(['tasks']);
       if (prev && !task.recurrence) {
@@ -211,11 +213,11 @@ export function useCompleteTask() {
           prev.filter((t) => t.id !== task.id && t.parent_id !== task.id),
         );
       }
-      return { prev };
+      return { prev, milestone };
     },
     onError: (_e, _t, ctx) => {
       if (ctx?.prev) qc.setQueryData(['tasks'], ctx.prev);
-      undoCompletion();
+      undoCompletion(ctx?.milestone ?? null);
     },
     onSettled: () => invalidateTasks(qc),
   });
