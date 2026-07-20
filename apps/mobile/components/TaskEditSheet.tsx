@@ -14,6 +14,7 @@ import {
 import { DateGrid } from './DateGrid';
 import { TimeRow } from './TimeRow';
 import { useLabels, useProjects, useSetTaskLabels, useUpdateTask } from '../lib/hooks';
+import { useBottomInset, useSheetMaxHeight } from '../lib/insets';
 import { useKeyboardOffset } from '../lib/keyboard';
 import { useTheme } from '../lib/theme';
 
@@ -47,6 +48,8 @@ export function TaskEditSheet({
   const [showGrid, setShowGrid] = useState(false);
   const [labelIds, setLabelIds] = useState<string[]>(task.label_ids);
   const { offset, onLayout } = useKeyboardOffset();
+  const bottomInset = useBottomInset(offset);
+  const sheetMaxHeight = useSheetMaxHeight();
 
   useEffect(() => {
     if (visible) {
@@ -102,8 +105,13 @@ export function TaskEditSheet({
     <Modal visible={visible} animationType="slide" transparent statusBarTranslucent onRequestClose={onClose}>
       <View style={[styles.root, { paddingBottom: offset }]} onLayout={onLayout}>
         <Pressable style={styles.backdrop} onPress={onClose} />
-        <View style={[styles.sheet, { backgroundColor: t.bgElevated }]}>
-          <ScrollView keyboardShouldPersistTaps="handled" style={{ maxHeight: 440 }}>
+        <View
+          style={[
+            styles.sheet,
+            { backgroundColor: t.bgElevated, paddingBottom: 16 + bottomInset },
+          ]}
+        >
+          <ScrollView keyboardShouldPersistTaps="handled" style={{ maxHeight: sheetMaxHeight }}>
             <TextInput
               value={content}
               onChangeText={setContent}
@@ -261,7 +269,6 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     padding: 16,
-    paddingBottom: 24,
   },
   input: { fontSize: 16, fontWeight: '600', paddingVertical: 4 },
   description: { fontSize: 13, paddingVertical: 2, marginBottom: 4 },

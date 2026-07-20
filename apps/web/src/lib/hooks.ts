@@ -32,6 +32,7 @@ import {
   updateLabel,
   updateProject,
   updateSection,
+  reorderTasks,
   updateTask,
   type Label,
   type NewTaskInput,
@@ -234,6 +235,32 @@ export function useUpdateTask() {
         qc.setQueryData(
           ['tasks'],
           prev.map((t) => (t.id === id ? { ...t, ...patch } : t)),
+        );
+      }
+      return { prev };
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(['tasks'], ctx.prev);
+    },
+    onSettled: () => invalidateTasks(qc),
+  });
+}
+
+export function useReorderTasks() {
+  const db = useSupabase();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (updates: { id: string; sort_order: number }[]) => reorderTasks(db, updates),
+    // Applied optimistically so the dropped row stays where it landed instead
+    // of snapping back while the writes are in flight.
+    onMutate: async (updates) => {
+      await qc.cancelQueries({ queryKey: ['tasks'] });
+      const prev = qc.getQueryData<TaskWithLabels[]>(['tasks']);
+      if (prev) {
+        const next = new Map(updates.map((u) => [u.id, u.sort_order]));
+        qc.setQueryData(
+          ['tasks'],
+          prev.map((t) => (next.has(t.id) ? { ...t, sort_order: next.get(t.id)! } : t)),
         );
       }
       return { prev };
