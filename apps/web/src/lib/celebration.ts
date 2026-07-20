@@ -25,8 +25,15 @@ export function registerCelebrationHandler(fn: Handler): () => void {
 
 const KEY_PREFIX = 'todoer.completions.';
 
-export function recordCompletion(): Milestone | null {
-  const key = `${KEY_PREFIX}${todayISO()}`;
+export interface RecordedCompletion {
+  /** The local day this completion was actually counted against. */
+  day: string;
+  milestone: Milestone | null;
+}
+
+export function recordCompletion(): RecordedCompletion {
+  const day = todayISO();
+  const key = `${KEY_PREFIX}${day}`;
   let count = 0;
   try {
     count = Number(localStorage.getItem(key) ?? '0');
@@ -41,21 +48,25 @@ export function recordCompletion(): Milestone | null {
   }
   const milestone = completionMilestone(next);
   if (milestone && handler) handler({ milestone });
-  return milestone;
+  return { day, milestone };
 }
 
 /**
  * Called if the completion this counted turns out to have failed on the
- * server. Decrements the counter, and if it had shown a celebration, asks
- * the UI to retract it.
+ * server. Decrements the counter for the day it was actually recorded
+ * against, not "today" (recomputing the day here would decrement the wrong
+ * one if the completion and its failure straddle local midnight). If it had
+ * shown a celebration, also asks the UI to retract it.
  */
-export function undoCompletion(shownMilestone: Milestone | null): void {
-  const key = `${KEY_PREFIX}${todayISO()}`;
+export function undoCompletion(recorded: RecordedCompletion | null): void {
+  if (!recorded) return;
+  const { day, milestone } = recorded;
+  const key = `${KEY_PREFIX}${day}`;
   try {
     const count = Number(localStorage.getItem(key) ?? '0');
     localStorage.setItem(key, String(Math.max(0, count - 1)));
   } catch {
     // best effort, same as recordCompletion
   }
-  if (shownMilestone && handler) handler({ retract: shownMilestone });
+  if (milestone && handler) handler({ retract: milestone });
 }

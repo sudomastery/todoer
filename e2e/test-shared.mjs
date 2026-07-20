@@ -236,7 +236,8 @@ console.log('== celebration retract bridge (web) ==');
   check('no event before the first milestone', events.length === 0, JSON.stringify(events));
 
   const third = mod.recordCompletion();
-  check('3rd completion returns the milestone', third?.count === 3, JSON.stringify(third));
+  check('recordCompletion reports the day it counted against', third.day === todayISO(), third.day);
+  check('3rd completion returns the milestone', third.milestone?.count === 3, JSON.stringify(third));
   check('3rd completion fires a show event', events.length === 1 && 'milestone' in events[0]);
 
   // A completion that later fails must retract exactly the milestone it
@@ -246,7 +247,7 @@ console.log('== celebration retract bridge (web) ==');
   check('retract carries the same milestone', events[1].retract?.count === 3);
 
   const fourth = mod.recordCompletion();
-  check('counter reflects the undo: next completion is 3rd again', fourth?.count === 3, JSON.stringify(fourth));
+  check('counter reflects the undo: next completion is 3rd again', fourth.milestone?.count === 3, JSON.stringify(fourth));
 
   // A completion that succeeds (no milestone) has nothing to retract on
   // failure, so undoCompletion(null) must decrement quietly with no event.
@@ -254,6 +255,23 @@ console.log('== celebration retract bridge (web) ==');
   events.length = 0;
   mod.undoCompletion(null);
   check('undoCompletion(null) fires no event', events.length === 0, JSON.stringify(events));
+
+  // A completion recorded on a past day (e.g. its failure was reported after
+  // local midnight) must decrement THAT day's counter, not today's, even
+  // though today's key is what a naive re-lookup would touch.
+  const staleDay = '2020-01-01';
+  store.set(`todoer.completions.${staleDay}`, '5');
+  const todayBefore = store.get(`todoer.completions.${todayISO()}`);
+  mod.undoCompletion({ day: staleDay, milestone: null });
+  check(
+    'undo decrements the recorded day, not today',
+    store.get(`todoer.completions.${staleDay}`) === '4',
+    store.get(`todoer.completions.${staleDay}`),
+  );
+  check(
+    "undo for a stale day leaves today's counter untouched",
+    store.get(`todoer.completions.${todayISO()}`) === todayBefore,
+  );
 
   delete globalThis.localStorage;
 }
