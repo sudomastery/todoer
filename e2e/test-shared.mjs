@@ -200,6 +200,25 @@ console.log('== recurrence options ==');
   check('undated still offers options', recurrenceOptions(null).length === 5);
 }
 
+console.log('== celebration milestones ==');
+{
+  const { completionMilestone } = await import('../packages/shared/src/celebration.ts');
+  check('no milestone at 1', completionMilestone(1) === null);
+  check('no milestone at 2', completionMilestone(2) === null);
+  check('milestone at 3', completionMilestone(3)?.count === 3);
+  check('no milestone at 4', completionMilestone(4) === null);
+  check('milestone at 5', completionMilestone(5)?.count === 5);
+  check('no milestone at 6', completionMilestone(6) === null);
+  check('no milestone at 7', completionMilestone(7) === null);
+  check('milestone at 8', completionMilestone(8)?.count === 8);
+  check('no milestone at 9', completionMilestone(9) === null);
+  check('milestone at 10', completionMilestone(10)?.count === 10);
+  check('no milestone at 11-14', [11, 12, 13, 14].every((n) => completionMilestone(n) === null));
+  check('milestone repeats every 5 after 10', completionMilestone(15)?.count === 15 && completionMilestone(20)?.count === 20 && completionMilestone(25)?.count === 25);
+  check('no milestone at 16-19', [16, 17, 18, 19].every((n) => completionMilestone(n) === null));
+  check('milestones carry copy', !!completionMilestone(3)?.title && !!completionMilestone(3)?.message && !!completionMilestone(15)?.title);
+}
+
 console.log('== notifications ==');
 {
   const prefs = { ...DEFAULT_NOTIFICATION_PREFS, enabled: true, leadMinutes: 10 };

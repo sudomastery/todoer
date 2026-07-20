@@ -4,6 +4,7 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import type { Session } from '@supabase/supabase-js';
+import { Celebration } from '../components/Celebration';
 import { supabase } from '../lib/supabase';
 import { useTheme } from '../lib/theme';
 
@@ -72,6 +73,7 @@ export default function RootLayout() {
           <Stack.Screen name="search" options={{ title: 'Search' }} />
         </Stack>
       </AuthGate>
+      <Celebration />
     </QueryClientProvider>
     </SafeAreaProvider>
   );

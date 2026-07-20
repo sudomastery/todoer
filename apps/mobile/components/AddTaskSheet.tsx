@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useMemo, useRef, useState } from 'react';
+import { Keyboard, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import {
   describeRecurrence,
@@ -33,6 +33,7 @@ export function AddTaskSheet({
   const quickAdd = useQuickAdd();
   const { data: projects } = useProjects();
   const [text, setText] = useState('');
+  const inputRef = useRef<TextInput>(null);
   const { offset, onLayout } = useKeyboardOffset();
   const bottomInset = useBottomInset(offset);
   const detailsMaxHeight = useSheetMaxHeight(0.45);
@@ -92,6 +93,19 @@ export function AddTaskSheet({
       transparent
       statusBarTranslucent
       onRequestClose={onClose}
+      // autoFocus alone does not raise the IME inside an Android Modal, which
+      // made adding a task a two tap affair: open, tap the field, then type.
+      // A single delayed focus() was unreliable (verified on the emulator: it
+      // landed before the native window actually had input focus, especially
+      // right after a cold start), so this retries at a few delays until the
+      // keyboard is confirmed up.
+      onShow={() => {
+        [0, 100, 250, 450].forEach((delay) => {
+          setTimeout(() => {
+            if (!Keyboard.isVisible()) inputRef.current?.focus();
+          }, delay);
+        });
+      }}
     >
       <View style={[styles.root, { paddingBottom: offset }]} onLayout={onLayout}>
         <Pressable style={styles.backdrop} onPress={onClose} />
@@ -102,6 +116,7 @@ export function AddTaskSheet({
           ]}
         >
           <TextInput
+            ref={inputRef}
             autoFocus
             value={text}
             onChangeText={setText}

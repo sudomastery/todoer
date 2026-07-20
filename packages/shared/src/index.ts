@@ -1,6 +1,7 @@
 export * from './types';
 export * from './colors';
 export * from './dates';
+export * from './celebration';
 export * from './display';
 export * from './notifications';
 export * from './recurrence';
