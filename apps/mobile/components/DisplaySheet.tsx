@@ -10,6 +10,7 @@ import {
   type Priority,
   type SortBy,
 } from '@todoer/shared';
+import { useBottomInset } from '../lib/insets';
 import { useTheme } from '../lib/theme';
 
 const LAYOUTS: { label: string; value: LayoutMode }[] = [
@@ -82,6 +83,7 @@ export function DisplaySheet({
   hideGroupProject?: boolean;
 }) {
   const t = useTheme();
+  const bottomInset = useBottomInset();
 
   const chip = (active: boolean) => [
     styles.chip,
@@ -99,7 +101,12 @@ export function DisplaySheet({
     <Modal visible={visible} animationType="slide" transparent statusBarTranslucent onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose} />
       <View style={styles.sheetWrap}>
-        <View style={[styles.sheet, { backgroundColor: t.bgElevated }]}>
+        <View
+          style={[
+            styles.sheet,
+            { backgroundColor: t.bgElevated, paddingBottom: 16 + bottomInset },
+          ]}
+        >
           <View style={styles.header}>
             <Text style={{ color: t.fg, fontSize: 16, fontWeight: '700' }}>Display</Text>
             {!isDefaultDisplay(prefs) && (
@@ -196,7 +203,6 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     padding: 16,
-    paddingBottom: 30,
   },
   header: {
     flexDirection: 'row',

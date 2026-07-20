@@ -112,7 +112,7 @@ export default function ProjectScreen() {
           onSectionLongPress={sectionActions}
         />
       )}
-      <Fab onPress={() => setAdding(true)} />
+      <Fab onPress={() => setAdding(true)} clearsSystemBar />
       <AddTaskSheet visible={adding} onClose={() => setAdding(false)} defaultProjectId={id} />
       <DisplaySheet
         visible={displayOpen}

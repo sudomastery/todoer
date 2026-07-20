@@ -1,6 +1,15 @@
 import { Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
-import { sortTasksBy, type Label, type Project, type SortBy, type TaskWithLabels } from '@todoer/shared';
+import {
+  canReorder,
+  sortTasksBy,
+  type Label,
+  type Project,
+  type SortBy,
+  type TaskWithLabels,
+} from '@todoer/shared';
+import { DraggableTaskList } from './DraggableTaskList';
 import { TaskRow } from './TaskRow';
+import { useReorderTasks } from '../lib/hooks';
 import { useTheme } from '../lib/theme';
 
 export interface TaskSection {
@@ -32,6 +41,7 @@ export function TaskListView({
   onSectionLongPress?: (sectionId: string, name: string) => void;
 }) {
   const t = useTheme();
+  const reorder = useReorderTasks();
 
   const prepared = sections
     .map((s) => {
@@ -54,6 +64,28 @@ export function TaskListView({
       <View style={styles.empty}>
         <Text style={{ color: t.fgFaint, fontSize: 14 }}>{emptyMessage}</Text>
       </View>
+    );
+  }
+
+  // Dragging is only offered where a dropped position will actually survive:
+  // manual sort, and a plain list with no section headers to move between.
+  const single = prepared.length === 1 && prepared[0].title === null;
+  if (canReorder(sortBy) && single && prepared[0].data.length > 1) {
+    const top = sortTasksBy(sections[0].data.filter((task) => !task.parent_id), sortBy);
+    return (
+      <DraggableTaskList
+        groups={top.map((task) => ({
+          task,
+          subtasks: sortTasksBy(
+            allTasks.filter((x) => x.parent_id === task.id),
+            'manual',
+          ),
+        }))}
+        projects={projects}
+        labels={labels}
+        showProject={showProject}
+        onReorder={(updates) => reorder.mutate(updates)}
+      />
     );
   }
 

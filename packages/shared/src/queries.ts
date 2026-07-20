@@ -195,6 +195,21 @@ export async function updateTask(db: Client, id: string, patch: UpdateTaskInput)
   throwIf(error);
 }
 
+/**
+ * Persists new manual ordering. The updates come from reorderSortOrders, which
+ * already trims the list to rows whose position actually moved.
+ */
+export async function reorderTasks(
+  db: Client,
+  updates: { id: string; sort_order: number }[],
+): Promise<void> {
+  if (updates.length === 0) return;
+  const results = await Promise.all(
+    updates.map(({ id, sort_order }) => db.from('tasks').update({ sort_order }).eq('id', id)),
+  );
+  for (const { error } of results) throwIf(error);
+}
+
 export async function setTaskLabels(db: Client, task: Pick<Task, 'id' | 'user_id'>, labelIds: string[]): Promise<void> {
   const { error: delError } = await db.from('task_labels').delete().eq('task_id', task.id);
   throwIf(delError);

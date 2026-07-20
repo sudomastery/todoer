@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { useTheme } from '../lib/theme';
@@ -41,6 +42,11 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 export default function RootLayout() {
   const t = useTheme();
   return (
+    // The app draws edge to edge on Android, so every surface that sits at the
+    // bottom of the screen has to know how tall the system bars are. Seeding
+    // with initialWindowMetrics means the first frame is already correct
+    // instead of jumping once the insets are measured.
+    <SafeAreaProvider initialMetrics={initialWindowMetrics}>
     <QueryClientProvider client={queryClient}>
       <AuthGate>
         <StatusBar style="auto" />
@@ -67,5 +73,6 @@ export default function RootLayout() {
         </Stack>
       </AuthGate>
     </QueryClientProvider>
+    </SafeAreaProvider>
   );
 }

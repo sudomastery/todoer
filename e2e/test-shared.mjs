@@ -14,6 +14,11 @@ import {
   parseNotificationPrefs,
 } from '../packages/shared/src/notifications.ts';
 import {
+  canReorder,
+  reorderSortOrders,
+  sortTasksBy,
+} from '../packages/shared/src/display.ts';
+import {
   todayISO,
   formatDueDate,
   formatDue,
@@ -136,6 +141,54 @@ check('garbage is null', parseTimeInput('later') === null);
 check('bad minutes rejected', parseTimeInput('9:75') === null, parseTimeInput('9:75'));
 check('hour over 23 rejected', parseTimeInput('25:00') === null);
 check('13pm rejected', parseTimeInput('13pm') === null, parseTimeInput('13pm'));
+
+console.log('== manual reordering ==');
+{
+  const item = (id, sort_order) => ({ id, sort_order });
+  const list = [item('a', 0), item('b', 1), item('c', 2), item('d', 3)];
+
+  // Drag 'a' down to position 2 -> b, c, a, d
+  const down = reorderSortOrders(list, 0, 2);
+  check('moving down renumbers only what shifted', down.length === 3, JSON.stringify(down));
+  const applied = (updates) => {
+    const map = new Map(updates.map((u) => [u.id, u.sort_order]));
+    return [...list]
+      .map((i) => ({ ...i, sort_order: map.get(i.id) ?? i.sort_order }))
+      .sort((x, y) => x.sort_order - y.sort_order)
+      .map((i) => i.id)
+      .join('');
+  };
+  check('moving down lands in the right order', applied(down) === 'bcad', applied(down));
+
+  // Drag 'd' up to the front -> d, a, b, c
+  const up = reorderSortOrders(list, 3, 0);
+  check('moving up lands in the right order', applied(up) === 'dabc', applied(up));
+
+  check('no-op move writes nothing', reorderSortOrders(list, 1, 1).length === 0);
+  check('out of range from is ignored', reorderSortOrders(list, 9, 0).length === 0);
+  check('out of range to is ignored', reorderSortOrders(list, 0, 9).length === 0);
+  check('negative index is ignored', reorderSortOrders(list, -1, 0).length === 0);
+  check('empty list is safe', reorderSortOrders([], 0, 0).length === 0);
+
+  // Renumbering an all-zero list (every existing task) assigns positions.
+  const zeros = [item('x', 0), item('y', 0), item('z', 0)];
+  const fromZero = reorderSortOrders(zeros, 2, 0);
+  check('all-zero list gets renumbered', fromZero.length === 2, JSON.stringify(fromZero));
+
+  check('drag allowed only under manual sort', canReorder('manual') && !canReorder('date') && !canReorder('priority'));
+}
+
+console.log('== manual sort no longer leads with priority ==');
+{
+  const task = (id, priority, sort_order) => ({
+    id, content: id, priority, sort_order,
+    created_at: '2026-01-01T00:00:00Z', due_date: null, due_time: null, label_ids: [],
+  });
+  // A low priority task dragged to the top must stay at the top.
+  const tasks = [task('low', 4, 0), task('high', 1, 1)];
+  check('manual keeps dragged order', sortTasksBy(tasks, 'manual').map((t) => t.id).join() === 'low,high');
+  check('priority sort still leads with priority', sortTasksBy(tasks, 'priority').map((t) => t.id).join() === 'high,low');
+}
 
 console.log('== recurrence options ==');
 {

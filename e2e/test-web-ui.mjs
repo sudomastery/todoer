@@ -174,6 +174,55 @@ try {
   check('comment count shown', await page.getByText('Comments (1)').isVisible());
   await page.getByRole('button', { name: 'Cancel' }).click();
 
+  console.log('== drag to reorder ==');
+  {
+    // Later sections continue from the project page, so restore it afterwards.
+    const returnUrl = page.url();
+    await page.getByRole('link', { name: 'Inbox' }).click();
+    await page.waitForURL('**/app/inbox');
+    const mainInbox = page.getByRole('main');
+    for (const name of ['Alpha task', 'Beta task', 'Gamma task']) {
+      await mainInbox.getByRole('button', { name: 'Add task' }).first().click();
+      await page.waitForTimeout(300);
+      await page.getByPlaceholder(/Task name, e.g./).fill(name);
+      await mainInbox.getByRole('button', { name: 'Add task', exact: true }).last().click();
+      await page.waitForSelector(`text=${name}`);
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(250);
+    }
+
+    const order = async () => {
+      const rows = await page.getByRole('main').getByText(/^(Alpha|Beta|Gamma) task$/).allTextContents();
+      return rows.join(',');
+    };
+    check('tasks start in creation order', (await order()) === 'Alpha task,Beta task,Gamma task', await order());
+
+    // Drag the third task to the top using the grip handle.
+    const gamma = page.getByRole('button', { name: 'Reorder Gamma task' });
+    const alpha = page.getByRole('button', { name: 'Reorder Alpha task' });
+    check('drag handles are present under manual sort', (await gamma.count()) === 1);
+
+    // The handles only reveal on hover, so move over the row first.
+    await page.getByText('Gamma task').hover();
+    const gammaBox = await gamma.boundingBox();
+    const alphaBox = await alpha.boundingBox();
+    await page.mouse.move(gammaBox.x + 4, gammaBox.y + 4);
+    await page.mouse.down();
+    await page.mouse.move(alphaBox.x + 4, alphaBox.y - 6, { steps: 12 });
+    await page.mouse.up();
+    await page.waitForTimeout(1200);
+    check('dragged task moved to the top', (await order()).startsWith('Gamma task'), await order());
+
+    // The new order must survive a reload, proving sort_order was persisted.
+    await page.reload();
+    await page.getByText('Gamma task').first().waitFor();
+    await page.waitForTimeout(600);
+    check('reordering persists across reload', (await order()).startsWith('Gamma task'), await order());
+
+    await page.goto(returnUrl);
+    await page.waitForTimeout(600);
+  }
+
   console.log('== display options ==');
   await page.getByRole('button', { name: 'Display' }).click();
   await page.getByRole('button', { name: 'Board' }).click();
