@@ -43,6 +43,7 @@ import {
   type UpdateTaskInput,
 } from '@todoer/shared';
 import { createClient } from '@/lib/supabase/client';
+import { recordCompletion, undoCompletion } from '@/lib/celebration';
 import { playCompletionSound } from '@/lib/sound';
 
 export function useSupabase() {
@@ -195,8 +196,13 @@ export function useCompleteTask() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (task: Task) => completeTask(db, task),
+    // Fired here rather than onSuccess: completing a task removes its row
+    // from the list optimistically below, which can unmount it before the
+    // network call resolves, and a hook level onSuccess is not guaranteed to
+    // run once the component that registered it is gone.
     onMutate: async (task) => {
       playCompletionSound();
+      recordCompletion();
       await qc.cancelQueries({ queryKey: ['tasks'] });
       const prev = qc.getQueryData<TaskWithLabels[]>(['tasks']);
       if (prev && !task.recurrence) {
@@ -209,6 +215,7 @@ export function useCompleteTask() {
     },
     onError: (_e, _t, ctx) => {
       if (ctx?.prev) qc.setQueryData(['tasks'], ctx.prev);
+      undoCompletion();
     },
     onSettled: () => invalidateTasks(qc),
   });

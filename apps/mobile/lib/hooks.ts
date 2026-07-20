@@ -36,6 +36,7 @@ import {
   type UpdateTaskInput,
 } from '@todoer/shared';
 import { supabase } from './supabase';
+import { recordCompletion, undoCompletion } from './celebration';
 import { playCompletionSound } from './sound';
 
 export function useProfile() {
@@ -126,8 +127,14 @@ export function useCompleteTask() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (task: Task) => completeTask(supabase, task),
+    // Fired here rather than onSuccess: completing a task removes its row
+    // from the list optimistically below, which unmounts it before the
+    // network call resolves, and a hook level onSuccess is not guaranteed to
+    // run once the component that registered it is gone. Verified on the
+    // emulator: milestones landed inconsistently until this moved.
     onMutate: async (task) => {
       void playCompletionSound();
+      void recordCompletion();
       await qc.cancelQueries({ queryKey: ['tasks'] });
       const prev = qc.getQueryData<TaskWithLabels[]>(['tasks']);
       if (prev && !task.recurrence) {
@@ -140,6 +147,7 @@ export function useCompleteTask() {
     },
     onError: (_e, _t, ctx) => {
       if (ctx?.prev) qc.setQueryData(['tasks'], ctx.prev);
+      void undoCompletion();
     },
     onSettled: () => {
       qc.invalidateQueries({ queryKey: ['tasks'] });
