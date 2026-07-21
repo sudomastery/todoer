@@ -93,6 +93,8 @@ try {
   // same pass; setting it before a date is deliberately not possible.
   check('time input enables once a date is set', await page.getByLabel('Due time').isEnabled());
   await page.getByLabel('Due time').fill('14:30');
+  // The time input commits on blur or Enter, the way the mobile one does.
+  await page.getByLabel('Due time').press('Enter');
   await page.keyboard.press('Escape');
   check('time shows on the due chip', await page.getByText(/2:30 PM/).first().isVisible());
 
@@ -231,7 +233,9 @@ try {
   check('board layout renders a column', true);
 
   await page.getByRole('button', { name: 'Display' }).click();
-  await page.getByLabel('Grouping').selectOption('priority');
+  await page.getByRole('radiogroup', { name: 'Grouping' })
+    .getByRole('radio', { name: 'Priority' })
+    .click();
   await page.keyboard.press('Escape');
   await page.getByRole('heading', { name: /Priority \d/ }).first().waitFor();
   check('board grouped by priority', true);
@@ -244,7 +248,9 @@ try {
   await shot('calendar');
 
   await page.getByRole('button', { name: 'Display' }).click();
-  await page.getByLabel('Priority filter').selectOption('1');
+  await page.getByRole('radiogroup', { name: 'Priority filter' })
+    .getByRole('radio', { name: 'P1' })
+    .click();
   await page.getByRole('button', { name: 'List' }).click();
   await page.keyboard.press('Escape');
   check('priority filter applied without error', true);

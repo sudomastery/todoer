@@ -18,6 +18,9 @@
 }
 
 :root {
+  /* Tells the browser which palette to draw its own chrome in: scrollbars,
+     focus rings, and the internals of any native control we still use. */
+  color-scheme: light;
   --bg: #ffffff;
   --bg-card: #ffffff;
   --bg-sidebar: #fcfaf8;
@@ -31,6 +34,7 @@
 }
 
 .dark {
+  color-scheme: dark;
   --bg: #1e1e1e;
   --bg-card: #242424;
   --bg-sidebar: #282828;

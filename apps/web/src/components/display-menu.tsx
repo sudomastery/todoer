@@ -14,39 +14,52 @@ const LAYOUTS: { value: LayoutMode; label: string; icon: React.ReactNode }[] = [
   { value: 'calendar', label: 'Calendar', icon: <Calendar className="h-4 w-4" /> },
 ];
 
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex items-center justify-between gap-3 py-1">
-      <span className="text-sm text-fg-secondary">{label}</span>
-      {children}
-    </div>
-  );
-}
-
-function Select<T extends string>({
+/**
+ * A row of selectable chips, matching the mobile display sheet. A native
+ * <select> was used here before, which drew the operating system's own
+ * dropdown inside our popover and rendered unreadable in dark mode.
+ */
+function ChipRow<T extends string>({
   label,
   value,
   options,
   onChange,
+  scroll = false,
 }: {
   label: string;
   value: T;
   options: { value: T; label: string }[];
   onChange: (v: T) => void;
+  /** cap the height when the option list is user-generated (labels) */
+  scroll?: boolean;
 }) {
   return (
-    <select
-      aria-label={label}
-      value={value}
-      onChange={(e) => onChange(e.target.value as T)}
-      className="w-36 rounded-md border border-border-strong bg-bg px-2 py-1.5 text-sm outline-none focus:border-fg-faint"
-    >
-      {options.map((o) => (
-        <option key={o.value} value={o.value}>
-          {o.label}
-        </option>
-      ))}
-    </select>
+    <div className="py-1.5">
+      <p className="mb-1.5 text-xs text-fg-secondary">{label}</p>
+      <div
+        role="radiogroup"
+        aria-label={label}
+        className={clsx('flex flex-wrap gap-1.5', scroll && 'max-h-28 overflow-y-auto')}
+      >
+        {options.map((o) => (
+          <button
+            key={o.value}
+            type="button"
+            role="radio"
+            aria-checked={value === o.value}
+            onClick={() => onChange(o.value)}
+            className={clsx(
+              'rounded-full border px-2.5 py-1 text-xs transition-colors',
+              value === o.value
+                ? 'border-brand/40 bg-brand-light font-semibold text-brand dark:bg-bg-active'
+                : 'border-border-strong text-fg-secondary hover:bg-bg-hover',
+            )}
+          >
+            {o.label}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -83,7 +96,7 @@ export function DisplayMenu({
           Display
         </button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-72 p-3">
+      <PopoverContent align="end" className="max-h-[80vh] w-72 overflow-y-auto p-3">
         <p className="mb-2 text-sm font-semibold">Layout</p>
         <div className="grid grid-cols-3 gap-1 rounded-lg bg-bg-hover p-1">
           {LAYOUTS.map((l) => (
@@ -127,69 +140,60 @@ export function DisplayMenu({
         </div>
 
         <p className="mt-4 mb-1 text-sm font-semibold">Sort</p>
-        <Row label="Grouping">
-          <Select
-            label="Grouping"
-            value={prefs.groupBy}
-            options={groupOptions}
-            onChange={(v) => update({ groupBy: v })}
-          />
-        </Row>
-        <Row label="Sorting">
-          <Select<SortBy>
-            label="Sorting"
-            value={prefs.sortBy}
-            options={[
-              { value: 'manual', label: 'Manual' },
-              { value: 'date', label: 'Date' },
-              { value: 'priority', label: 'Priority' },
-              { value: 'name', label: 'Name' },
-              { value: 'added', label: 'Date added' },
-            ]}
-            onChange={(v) => update({ sortBy: v })}
-          />
-        </Row>
+        <ChipRow
+          label="Grouping"
+          value={prefs.groupBy}
+          options={groupOptions}
+          onChange={(v) => update({ groupBy: v })}
+        />
+        <ChipRow<SortBy>
+          label="Sorting"
+          value={prefs.sortBy}
+          options={[
+            { value: 'manual', label: 'Manual' },
+            { value: 'date', label: 'Date' },
+            { value: 'priority', label: 'Priority' },
+            { value: 'name', label: 'Name' },
+            { value: 'added', label: 'Date added' },
+          ]}
+          onChange={(v) => update({ sortBy: v })}
+        />
 
         <p className="mt-4 mb-1 text-sm font-semibold">Filter</p>
-        <Row label="Date">
-          <Select<DateFilter>
-            label="Date filter"
-            value={prefs.dateFilter}
-            options={[
-              { value: 'all', label: 'All' },
-              { value: 'overdue', label: 'Overdue' },
-              { value: 'today', label: 'Due today' },
-              { value: 'week', label: 'Next 7 days' },
-              { value: 'nodate', label: 'No date' },
-            ]}
-            onChange={(v) => update({ dateFilter: v })}
-          />
-        </Row>
-        <Row label="Priority">
-          <Select
-            label="Priority filter"
-            value={String(prefs.priorityFilter)}
-            options={[
-              { value: '0', label: 'All' },
-              { value: '1', label: 'P1' },
-              { value: '2', label: 'P2' },
-              { value: '3', label: 'P3' },
-              { value: '4', label: 'P4' },
-            ]}
-            onChange={(v) => update({ priorityFilter: Number(v) as 0 | Priority })}
-          />
-        </Row>
-        <Row label="Label">
-          <Select
-            label="Label filter"
-            value={prefs.labelFilter ?? 'all'}
-            options={[
-              { value: 'all', label: 'All' },
-              ...(labels ?? []).map((l) => ({ value: l.id, label: `@${l.name}` })),
-            ]}
-            onChange={(v) => update({ labelFilter: v === 'all' ? null : v })}
-          />
-        </Row>
+        <ChipRow<DateFilter>
+          label="Date filter"
+          value={prefs.dateFilter}
+          options={[
+            { value: 'all', label: 'All' },
+            { value: 'overdue', label: 'Overdue' },
+            { value: 'today', label: 'Due today' },
+            { value: 'week', label: 'Next 7 days' },
+            { value: 'nodate', label: 'No date' },
+          ]}
+          onChange={(v) => update({ dateFilter: v })}
+        />
+        <ChipRow
+          label="Priority filter"
+          value={String(prefs.priorityFilter)}
+          options={[
+            { value: '0', label: 'All' },
+            { value: '1', label: 'P1' },
+            { value: '2', label: 'P2' },
+            { value: '3', label: 'P3' },
+            { value: '4', label: 'P4' },
+          ]}
+          onChange={(v) => update({ priorityFilter: Number(v) as 0 | Priority })}
+        />
+        <ChipRow
+          label="Label filter"
+          value={prefs.labelFilter ?? 'all'}
+          scroll
+          options={[
+            { value: 'all', label: 'All' },
+            ...(labels ?? []).map((l) => ({ value: l.id, label: `@${l.name}` })),
+          ]}
+          onChange={(v) => update({ labelFilter: v === 'all' ? null : v })}
+        />
 
         {!isDefaultDisplay(prefs) && (
           <button

@@ -32,7 +32,9 @@ import {
   describeRecurrence,
   formatDue,
   formatDueDate,
+  formatDueTime,
   monthGrid,
+  parseTimeInput,
   recurrenceOptions,
   PRIORITY_COLORS,
   todayISO,
@@ -44,6 +46,96 @@ import {
 } from '@todoer/shared';
 import { useLabels, useProjects } from '@/lib/hooks';
 import { Chip, Popover, PopoverContent, PopoverTrigger } from '@/components/ui';
+
+const TIME_PRESETS = [
+  { label: 'Morning', value: '09:00:00' },
+  { label: 'Noon', value: '12:00:00' },
+  { label: 'Evening', value: '18:00:00' },
+];
+
+/**
+ * Sets a due time. This was a native <input type="time"> before, which drew
+ * the browser's own spinner and hid the Morning/Noon/Evening presets that
+ * mobile has had all along.
+ */
+function TimeRow({
+  value,
+  disabled,
+  onChange,
+}: {
+  value: string | null;
+  disabled: boolean;
+  onChange: (time: string | null) => void;
+}) {
+  const [text, setText] = useState(value ? formatDueTime(value) : '');
+
+  // The day buttons can clear the time out from under this input.
+  const [lastValue, setLastValue] = useState(value);
+  if (lastValue !== value) {
+    setLastValue(value);
+    setText(value ? formatDueTime(value) : '');
+  }
+
+  function commit() {
+    if (!text.trim()) return onChange(null);
+    const parsed = parseTimeInput(text);
+    if (parsed) return onChange(parsed);
+    // Not a time: snap back to whatever is actually stored.
+    setText(value ? formatDueTime(value) : '');
+  }
+
+  const chip = (active: boolean) =>
+    clsx(
+      'rounded-md border px-2 py-1 text-xs transition-colors',
+      active
+        ? 'border-brand text-brand'
+        : 'border-border-strong text-fg-secondary hover:bg-bg-hover',
+    );
+
+  return (
+    <div
+      className={clsx(
+        'flex flex-wrap items-center gap-1.5 border-t border-border-default px-2.5 py-2',
+        disabled && 'opacity-50',
+      )}
+      title={disabled ? 'Pick a date first' : undefined}
+    >
+      <Clock className="h-4 w-4 shrink-0 text-fg-secondary" />
+      {TIME_PRESETS.map((p) => (
+        <button
+          key={p.label}
+          type="button"
+          disabled={disabled}
+          aria-pressed={value === p.value}
+          onClick={() => onChange(p.value)}
+          className={chip(value === p.value)}
+        >
+          {p.label}
+        </button>
+      ))}
+      <input
+        aria-label="Due time"
+        disabled={disabled}
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            commit();
+          }
+        }}
+        placeholder="9:30 pm"
+        className="w-20 rounded-md border border-border-strong bg-bg px-2 py-1 text-xs outline-none focus:border-fg-faint"
+      />
+      {value && (
+        <button type="button" onClick={() => onChange(null)} className={chip(false)}>
+          Clear
+        </button>
+      )}
+    </div>
+  );
+}
 
 // ============================================================
 // Due date picker
@@ -205,29 +297,13 @@ export function DuePicker({
         </div>
 
         {onTimeChange && (
-          <div className="flex items-center gap-2 border-t border-border-default px-2.5 py-2">
-            <Clock className="h-4 w-4 shrink-0 text-fg-secondary" />
-            <input
-              type="time"
-              aria-label="Due time"
-              // A time with no day would never fire, so this stays disabled
-              // until a date is chosen rather than quietly inventing one.
-              disabled={!value}
-              title={value ? undefined : 'Pick a date first'}
-              value={time ? time.slice(0, 5) : ''}
-              onChange={(e) => onTimeChange(e.target.value ? `${e.target.value}:00` : null)}
-              className="flex-1 rounded-md border border-border-strong bg-bg px-2 py-1 text-sm outline-none focus:border-fg-faint disabled:opacity-50"
-            />
-            {time && (
-              <button
-                type="button"
-                onClick={() => onTimeChange(null)}
-                className="rounded px-1.5 py-1 text-xs text-fg-secondary hover:bg-bg-hover"
-              >
-                Clear
-              </button>
-            )}
-          </div>
+          <TimeRow
+            value={time ?? null}
+            // A time with no day would never fire, so this stays disabled
+            // until a date is chosen rather than quietly inventing one.
+            disabled={!value}
+            onChange={onTimeChange}
+          />
         )}
 
         {value && (

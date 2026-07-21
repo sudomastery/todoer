@@ -1,10 +1,13 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { MoreHorizontal, Pencil, Plus, Tag, Trash2 } from 'lucide-react';
-import { colorHex } from '@todoer/shared';
-import { useActiveTasks, useCreateLabel, useDeleteLabel, useLabels, useUpdateLabel } from '@/lib/hooks';
+import { colorHex, type Label } from '@todoer/shared';
+import { useActiveTasks, useDeleteLabel, useLabels } from '@/lib/hooks';
 import { RowSkeleton } from '@/components/loading';
+import { ConfirmDialog } from '@/components/confirm-dialog';
+import { LabelDialog } from '@/components/label-dialog';
 import {
   Dropdown,
   DropdownContent,
@@ -16,21 +19,17 @@ import {
 export default function LabelsPage() {
   const { data: labels, isLoading } = useLabels();
   const { data: tasks } = useActiveTasks();
-  const createLabel = useCreateLabel();
-  const updateLabel = useUpdateLabel();
   const deleteLabel = useDeleteLabel();
+
+  const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState<Label | null>(null);
+  const [deleting, setDeleting] = useState<Label | null>(null);
 
   return (
     <div>
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Filters &amp; Labels</h1>
-        <IconButton
-          label="Add label"
-          onClick={() => {
-            const name = prompt('Label name');
-            if (name?.trim()) createLabel.mutate({ name: name.trim() });
-          }}
-        >
+        <IconButton label="Add label" onClick={() => setAdding(true)}>
           <Plus className="h-5 w-5" />
         </IconButton>
       </div>
@@ -70,21 +69,10 @@ export default function LabelsPage() {
                     </button>
                   </DropdownTrigger>
                   <DropdownContent align="end">
-                    <DropdownItem
-                      onSelect={() => {
-                        const name = prompt('Rename label', label.name);
-                        if (name?.trim())
-                          updateLabel.mutate({ id: label.id, patch: { name: name.trim() } });
-                      }}
-                    >
-                      <Pencil className="h-4 w-4" /> Rename
+                    <DropdownItem onSelect={() => setEditing(label)}>
+                      <Pencil className="h-4 w-4" /> Edit
                     </DropdownItem>
-                    <DropdownItem
-                      danger
-                      onSelect={() => {
-                        if (confirm(`Delete label "${label.name}"?`)) deleteLabel.mutate(label.id);
-                      }}
-                    >
+                    <DropdownItem danger onSelect={() => setDeleting(label)}>
                       <Trash2 className="h-4 w-4" /> Delete
                     </DropdownItem>
                   </DropdownContent>
@@ -94,6 +82,25 @@ export default function LabelsPage() {
           })
         )}
       </div>
+
+      <LabelDialog open={adding} onOpenChange={setAdding} />
+      <LabelDialog
+        // Keyed so the dialog remounts per label and picks up its own values.
+        key={editing?.id ?? 'none'}
+        open={editing !== null}
+        onOpenChange={(o) => !o && setEditing(null)}
+        label={editing ?? undefined}
+      />
+      <ConfirmDialog
+        open={deleting !== null}
+        onOpenChange={(o) => !o && setDeleting(null)}
+        title={`Delete "${deleting?.name ?? ''}"?`}
+        message="Tasks keep their other labels."
+        confirmLabel="Delete label"
+        onConfirm={() => {
+          if (deleting) deleteLabel.mutate(deleting.id);
+        }}
+      />
     </div>
   );
 }

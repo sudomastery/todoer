@@ -42,6 +42,7 @@ import {
 } from '@/lib/hooks';
 import { useShell } from '@/components/app-shell';
 import { ProjectDialog } from '@/components/project-dialog';
+import { ConfirmDialog } from '@/components/confirm-dialog';
 import {
   Dropdown,
   DropdownContent,
@@ -93,6 +94,7 @@ function ProjectRow({ project, active }: { project: Project; active: boolean }) 
   const deleteProject = useDeleteProject();
   const { data: tasks } = useActiveTasks();
   const [editing, setEditing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const count = (tasks ?? []).filter((t) => t.project_id === project.id).length;
 
@@ -148,21 +150,24 @@ function ProjectRow({ project, active }: { project: Project; active: boolean }) 
               )}
             </DropdownItem>
             <DropdownSeparator />
-            <DropdownItem
-              danger
-              onSelect={() => {
-                if (confirm(`Delete "${project.name}" and all of its tasks?`)) {
-                  deleteProject.mutate(project.id);
-                  if (active) router.push('/app/inbox');
-                }
-              }}
-            >
+            <DropdownItem danger onSelect={() => setDeleting(true)}>
               <Trash2 className="h-4 w-4" /> Delete
             </DropdownItem>
           </DropdownContent>
         </Dropdown>
       </div>
       <ProjectDialog open={editing} onOpenChange={setEditing} project={project} />
+      <ConfirmDialog
+        open={deleting}
+        onOpenChange={setDeleting}
+        title={`Delete "${project.name}"?`}
+        message="Every task in this project is deleted too."
+        confirmLabel="Delete project"
+        onConfirm={() => {
+          deleteProject.mutate(project.id);
+          if (active) router.push('/app/inbox');
+        }}
+      />
     </div>
   );
 }

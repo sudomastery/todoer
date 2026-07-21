@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AlertTriangle, Loader2, Trash2 } from 'lucide-react';
-import { buildExport, deleteAccount } from '@todoer/shared';
+import { buildExport, deleteAccount, friendlyError } from '@todoer/shared';
 import { createClient } from '@/lib/supabase/client';
 import { Dialog, DialogContent } from '@/components/ui';
 
@@ -57,7 +57,7 @@ export function DangerZoneDialog({
       await deleteAccount(supabase);
     } catch (e) {
       setBusy(false);
-      setError(e instanceof Error ? e.message : 'Unknown error');
+      setError(friendlyError(e, 'Your account was not deleted. Please try again.'));
       return;
     }
     await supabase.auth.signOut();

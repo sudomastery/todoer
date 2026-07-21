@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import {
-  Alert,
   Modal,
   Pressable,
   ScrollView,
@@ -17,6 +16,7 @@ import {
   COLOR_KEYS,
   colorHex,
   deleteAccount,
+  friendlyError,
   PALETTE,
   DEFAULT_NOTIFICATION_PREFS,
   LEAD_OPTIONS,
@@ -41,6 +41,8 @@ import {
   useUpdateProject,
 } from '../../lib/hooks';
 import { NamePrompt } from '../../components/NamePrompt';
+import { ActionSheet } from '../../components/ActionSheet';
+import { ConfirmSheet } from '../../components/ConfirmSheet';
 import {
   COMPLETION_SOUNDS,
   getSoundPref,
@@ -49,6 +51,7 @@ import {
   type SoundPref,
 } from '../../lib/sound';
 import { supabase } from '../../lib/supabase';
+import { useKeyboardOffset } from '../../lib/keyboard';
 import { useAccentId, useTheme, setAccentId } from '../../lib/theme';
 import { ACCENT_THEMES } from '@todoer/shared';
 
@@ -143,6 +146,7 @@ function NotificationSetting() {
   const t = useTheme();
   const { data: tasks } = useActiveTasks();
   const [prefs, setPrefs] = useState<NotificationPrefs>(DEFAULT_NOTIFICATION_PREFS);
+  const [notice, setNotice] = useState<{ title: string; message: string } | null>(null);
 
   useEffect(() => {
     getNotificationPrefs().then(setPrefs);
@@ -151,10 +155,10 @@ function NotificationSetting() {
   async function apply(patch: Partial<NotificationPrefs>) {
     let next = { ...prefs, ...patch };
     if (patch.enabled === true && !(await ensurePermission())) {
-      Alert.alert(
-        'Notifications are blocked',
-        'Allow notifications for Todoer in your system settings to get reminders.',
-      );
+      setNotice({
+        title: 'Notifications are blocked',
+        message: 'Allow notifications for Todoer in your system settings to get reminders.',
+      });
       next = { ...next, enabled: false };
     }
     setPrefs(next);
@@ -248,6 +252,16 @@ function NotificationSetting() {
           </Text>
         </>
       )}
+      <ConfirmSheet
+        visible={notice !== null}
+        title={notice?.title ?? ''}
+        message={notice?.message}
+        confirmLabel="Got it"
+        icon="notifications-off-outline"
+        tone="notice"
+        onConfirm={() => setNotice(null)}
+        onCancel={() => setNotice(null)}
+      />
     </View>
   );
 }
@@ -294,6 +308,7 @@ function SoundSetting() {
 
 export default function BrowseScreen() {
   const t = useTheme();
+  const keyboard = useKeyboardOffset();
   const router = useRouter();
   const { data: projects } = useProjects();
   const { data: labels } = useLabels();
@@ -316,6 +331,13 @@ export default function BrowseScreen() {
   const [dangerRevealed, setDangerRevealed] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState('');
   const [deleting, setDeleting] = useState(false);
+  const [labelMenu, setLabelMenu] = useState<{ id: string; name: string } | null>(null);
+  const [deletingLabel, setDeletingLabel] = useState<{ id: string; name: string } | null>(null);
+  const [projectMenu, setProjectMenu] = useState<(typeof regular)[number] | null>(null);
+  const [deletingProject, setDeletingProject] = useState<(typeof regular)[number] | null>(null);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const [confirmingDeleteAccount, setConfirmingDeleteAccount] = useState(false);
+  const [notice, setNotice] = useState<{ title: string; message: string } | null>(null);
   const { data: profile } = useProfile();
   const profileName = profile?.username || profile?.full_name || 'DELETE';
 
@@ -340,48 +362,11 @@ export default function BrowseScreen() {
   }
 
   function labelActions(l: { id: string; name: string }) {
-    Alert.alert(l.name, undefined, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Rename', onPress: () => setLabelPrompt({ id: l.id, name: l.name }) },
-      {
-        text: 'Delete label',
-        style: 'destructive',
-        onPress: () =>
-          Alert.alert('Delete label', `Delete "${l.name}"? Tasks keep their other labels.`, [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Delete', style: 'destructive', onPress: () => deleteLabel.mutate(l.id) },
-          ]),
-      },
-    ]);
+    setLabelMenu(l);
   }
 
   function projectActions(p: (typeof regular)[number]) {
-    Alert.alert(p.name, undefined, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Edit',
-        onPress: () => {
-          setProjectName(p.name);
-          setProjectColor(p.color);
-          setProjectFavorite(p.is_favorite);
-          setRenamingProjectId(p.id);
-          setAddingProject(true);
-        },
-      },
-      {
-        text: p.is_favorite ? 'Remove from favorites' : 'Add to favorites',
-        onPress: () => updateProject.mutate({ id: p.id, patch: { is_favorite: !p.is_favorite } }),
-      },
-      {
-        text: 'Delete project',
-        style: 'destructive',
-        onPress: () =>
-          Alert.alert('Delete project', `Delete "${p.name}" and all its tasks?`, [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Delete', style: 'destructive', onPress: () => deleteProject.mutate(p.id) },
-          ]),
-      },
-    ]);
+    setProjectMenu(p);
   }
 
   return (
@@ -526,7 +511,10 @@ export default function BrowseScreen() {
                 message: JSON.stringify(data, null, 2),
               });
             } catch (e) {
-              Alert.alert('Export failed', e instanceof Error ? e.message : 'Unknown error');
+              setNotice({
+                title: 'Export failed',
+                message: friendlyError(e, 'Your data could not be exported. Please try again.'),
+              });
             }
           }}
           style={({ pressed }) => [
@@ -539,12 +527,7 @@ export default function BrowseScreen() {
           <Text style={[styles.rowText, { color: t.fg }]}>Export data</Text>
         </Pressable>
         <Pressable
-          onPress={() =>
-            Alert.alert('Log out', 'Are you sure you want to log out?', [
-              { text: 'Cancel', style: 'cancel' },
-              { text: 'Log out', style: 'destructive', onPress: () => supabase.auth.signOut() },
-            ])
-          }
+          onPress={() => setLoggingOut(true)}
           style={({ pressed }) => [
             styles.row,
             { borderBottomColor: t.border },
@@ -564,7 +547,11 @@ export default function BrowseScreen() {
         onRequestClose={closeProjectDialog}
       >
         <Pressable style={styles.modalBackdrop} onPress={closeProjectDialog} />
-        <View style={styles.modalCenter} pointerEvents="box-none">
+        <View
+          style={[styles.modalCenter, { paddingBottom: 32 + keyboard.offset }]}
+          onLayout={keyboard.onLayout}
+          pointerEvents="box-none"
+        >
           <View style={[styles.modalCard, { backgroundColor: t.bgElevated }]}>
             <Text style={[styles.sectionTitle, { color: t.fg, marginBottom: 10 }]}>
               {renamingProjectId ? 'Edit project' : 'Add project'}
@@ -688,28 +675,7 @@ export default function BrowseScreen() {
               />
               <Pressable
                 disabled={deleteConfirm !== profileName || deleting}
-                onPress={() =>
-                  Alert.alert('Delete account', 'This cannot be undone. Continue?', [
-                    { text: 'Cancel', style: 'cancel' },
-                    {
-                      text: 'Delete forever',
-                      style: 'destructive',
-                      onPress: async () => {
-                        setDeleting(true);
-                        try {
-                          await deleteAccount(supabase);
-                          await supabase.auth.signOut();
-                        } catch (e) {
-                          setDeleting(false);
-                          Alert.alert(
-                            'Could not delete account',
-                            e instanceof Error ? e.message : 'Unknown error',
-                          );
-                        }
-                      },
-                    },
-                  ])
-                }
+                onPress={() => setConfirmingDeleteAccount(true)}
                 style={({ pressed }) => [
                   styles.dangerBtn,
                   {
@@ -729,6 +695,129 @@ export default function BrowseScreen() {
           )}
         </View>
       </CollapsibleSection>
+
+      <ActionSheet
+        visible={labelMenu !== null}
+        title={labelMenu?.name}
+        onClose={() => setLabelMenu(null)}
+        actions={[
+          {
+            label: 'Rename',
+            icon: 'pencil-outline',
+            onPress: () => labelMenu && setLabelPrompt({ id: labelMenu.id, name: labelMenu.name }),
+          },
+          {
+            label: 'Delete label',
+            icon: 'trash-outline',
+            destructive: true,
+            onPress: () => labelMenu && setDeletingLabel(labelMenu),
+          },
+        ]}
+      />
+      <ConfirmSheet
+        visible={deletingLabel !== null}
+        title={`Delete "${deletingLabel?.name ?? ''}"?`}
+        message="Tasks keep their other labels."
+        confirmLabel="Delete label"
+        onConfirm={() => {
+          if (deletingLabel) deleteLabel.mutate(deletingLabel.id);
+          setDeletingLabel(null);
+        }}
+        onCancel={() => setDeletingLabel(null)}
+      />
+
+      <ActionSheet
+        visible={projectMenu !== null}
+        title={projectMenu?.name}
+        onClose={() => setProjectMenu(null)}
+        actions={[
+          {
+            label: 'Edit',
+            icon: 'pencil-outline',
+            onPress: () => {
+              if (!projectMenu) return;
+              setProjectName(projectMenu.name);
+              setProjectColor(projectMenu.color);
+              setProjectFavorite(projectMenu.is_favorite);
+              setRenamingProjectId(projectMenu.id);
+              setAddingProject(true);
+            },
+          },
+          {
+            label: projectMenu?.is_favorite ? 'Remove from favorites' : 'Add to favorites',
+            icon: projectMenu?.is_favorite ? 'star-outline' : 'star',
+            onPress: () =>
+              projectMenu &&
+              updateProject.mutate({
+                id: projectMenu.id,
+                patch: { is_favorite: !projectMenu.is_favorite },
+              }),
+          },
+          {
+            label: 'Delete project',
+            icon: 'trash-outline',
+            destructive: true,
+            onPress: () => projectMenu && setDeletingProject(projectMenu),
+          },
+        ]}
+      />
+      <ConfirmSheet
+        visible={deletingProject !== null}
+        title={`Delete "${deletingProject?.name ?? ''}"?`}
+        message="Every task in this project is deleted too."
+        confirmLabel="Delete project"
+        onConfirm={() => {
+          if (deletingProject) deleteProject.mutate(deletingProject.id);
+          setDeletingProject(null);
+        }}
+        onCancel={() => setDeletingProject(null)}
+      />
+
+      <ConfirmSheet
+        visible={loggingOut}
+        title="Log out?"
+        message="You will need to sign in again to see your tasks."
+        confirmLabel="Log out"
+        icon="log-out-outline"
+        onConfirm={() => {
+          setLoggingOut(false);
+          void supabase.auth.signOut();
+        }}
+        onCancel={() => setLoggingOut(false)}
+      />
+
+      <ConfirmSheet
+        visible={confirmingDeleteAccount}
+        title="Delete account?"
+        message="This cannot be undone. Every task, project, and label is destroyed."
+        confirmLabel="Delete forever"
+        onConfirm={async () => {
+          setConfirmingDeleteAccount(false);
+          setDeleting(true);
+          try {
+            await deleteAccount(supabase);
+            await supabase.auth.signOut();
+          } catch (e) {
+            setDeleting(false);
+            setNotice({
+              title: 'Could not delete account',
+              message: friendlyError(e, 'Your account was not deleted. Please try again.'),
+            });
+          }
+        }}
+        onCancel={() => setConfirmingDeleteAccount(false)}
+      />
+
+      <ConfirmSheet
+        visible={notice !== null}
+        title={notice?.title ?? ''}
+        message={notice?.message}
+        confirmLabel="Got it"
+        icon="alert-circle-outline"
+        tone="notice"
+        onConfirm={() => setNotice(null)}
+        onCancel={() => setNotice(null)}
+      />
     </ScrollView>
   );
 }

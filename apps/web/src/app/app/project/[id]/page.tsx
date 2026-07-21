@@ -18,6 +18,8 @@ import { TaskView } from '@/components/task-view';
 import { DisplayMenu } from '@/components/display-menu';
 import { ProjectDialog } from '@/components/project-dialog';
 import { TaskListSkeleton } from '@/components/loading';
+import { ConfirmDialog } from '@/components/confirm-dialog';
+import { PromptDialog } from '@/components/prompt-dialog';
 import {
   Dropdown,
   DropdownContent,
@@ -38,6 +40,8 @@ function SectionBlock({
   const { data: tasks } = useActiveTasks();
   const updateSection = useUpdateSection();
   const deleteSection = useDeleteSection();
+  const [renaming, setRenaming] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const all = tasks ?? [];
   const sectionTasks = all.filter(
     (t) => t.project_id === projectId && (t.section_id ?? null) === sectionId,
@@ -62,22 +66,10 @@ function SectionBlock({
                 </button>
               </DropdownTrigger>
               <DropdownContent align="end">
-                <DropdownItem
-                  onSelect={() => {
-                    const newName = prompt('Rename section', name);
-                    if (newName?.trim())
-                      updateSection.mutate({ id: sectionId, patch: { name: newName.trim() } });
-                  }}
-                >
+                <DropdownItem onSelect={() => setRenaming(true)}>
                   <Pencil className="h-4 w-4" /> Rename
                 </DropdownItem>
-                <DropdownItem
-                  danger
-                  onSelect={() => {
-                    if (confirm(`Delete section "${name}" and its tasks?`))
-                      deleteSection.mutate(sectionId);
-                  }}
-                >
+                <DropdownItem danger onSelect={() => setDeleting(true)}>
                   <Trash2 className="h-4 w-4" /> Delete
                 </DropdownItem>
               </DropdownContent>
@@ -87,6 +79,28 @@ function SectionBlock({
       )}
       <TaskList tasks={sectionTasks} allTasks={all} />
       <AddTaskButton defaultProjectId={projectId} sectionId={sectionId} />
+
+      {sectionId && (
+        <>
+          <PromptDialog
+            open={renaming}
+            onOpenChange={setRenaming}
+            title="Rename section"
+            fieldLabel="Name"
+            initialValue={name ?? ''}
+            submitLabel="Save"
+            onSubmit={(next) => updateSection.mutate({ id: sectionId, patch: { name: next } })}
+          />
+          <ConfirmDialog
+            open={deleting}
+            onOpenChange={setDeleting}
+            title={`Delete "${name}"?`}
+            message="The tasks in this section are deleted too."
+            confirmLabel="Delete section"
+            onConfirm={() => deleteSection.mutate(sectionId)}
+          />
+        </>
+      )}
     </section>
   );
 }
@@ -101,6 +115,7 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
   const display = useDisplayPrefs(`project.${id}`);
   const createSection = useCreateSection();
   const [editing, setEditing] = useState(false);
+  const [addingSection, setAddingSection] = useState(false);
 
   const project = (projects ?? []).find((p) => p.id === id);
   const projectSections = (sections ?? []).filter((s) => s.project_id === id);
@@ -159,15 +174,21 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
 
       <button
         type="button"
-        onClick={() => {
-          const name = prompt('Section name');
-          if (name?.trim()) createSection.mutate({ project_id: project.id, name: name.trim() });
-        }}
+        onClick={() => setAddingSection(true)}
         className="mt-8 flex items-center gap-2 text-sm text-fg-faint hover:text-brand"
       >
         <Plus className="h-4 w-4" /> Add section
       </button>
 
+      <PromptDialog
+        open={addingSection}
+        onOpenChange={setAddingSection}
+        title="Add section"
+        fieldLabel="Name"
+        placeholder="e.g. This week"
+        submitLabel="Add"
+        onSubmit={(name) => createSection.mutate({ project_id: project.id, name })}
+      />
       <ProjectDialog open={editing} onOpenChange={setEditing} project={project} />
     </div>
   );

@@ -3,6 +3,7 @@ export * from './colors';
 export * from './dates';
 export * from './celebration';
 export * from './display';
+export * from './errors';
 export * from './notifications';
 export * from './recurrence';
 export * from './quickadd';

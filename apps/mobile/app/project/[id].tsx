@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, Pressable, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { filterTasks, groupTasks } from '@todoer/shared';
@@ -20,6 +20,8 @@ import { CalendarView } from '../../components/CalendarView';
 import { AddTaskSheet } from '../../components/AddTaskSheet';
 import { Fab } from '../../components/Fab';
 import { NamePrompt } from '../../components/NamePrompt';
+import { ActionSheet } from '../../components/ActionSheet';
+import { ConfirmSheet } from '../../components/ConfirmSheet';
 import { useTheme } from '../../lib/theme';
 
 export default function ProjectScreen() {
@@ -37,24 +39,11 @@ export default function ProjectScreen() {
   const updateSection = useUpdateSection();
   const deleteSection = useDeleteSection();
 
+  const [sectionMenu, setSectionMenu] = useState<{ id: string; name: string } | null>(null);
+  const [deletingSection, setDeletingSection] = useState<{ id: string; name: string } | null>(null);
+
   function sectionActions(sectionId: string, name: string) {
-    Alert.alert(name, undefined, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Rename', onPress: () => setSectionPrompt({ id: sectionId, name }) },
-      {
-        text: 'Delete section',
-        style: 'destructive',
-        onPress: () =>
-          Alert.alert('Delete section', `Delete "${name}" and its tasks?`, [
-            { text: 'Cancel', style: 'cancel' },
-            {
-              text: 'Delete',
-              style: 'destructive',
-              onPress: () => deleteSection.mutate(sectionId),
-            },
-          ]),
-      },
-    ]);
+    setSectionMenu({ id: sectionId, name });
   }
 
   const project = (projects ?? []).find((p) => p.id === id);
@@ -138,6 +127,37 @@ export default function ProjectScreen() {
           }
           setSectionPrompt(null);
         }}
+      />
+
+      <ActionSheet
+        visible={sectionMenu !== null}
+        title={sectionMenu?.name}
+        onClose={() => setSectionMenu(null)}
+        actions={[
+          {
+            label: 'Rename',
+            icon: 'pencil-outline',
+            onPress: () =>
+              sectionMenu && setSectionPrompt({ id: sectionMenu.id, name: sectionMenu.name }),
+          },
+          {
+            label: 'Delete section',
+            icon: 'trash-outline',
+            destructive: true,
+            onPress: () => sectionMenu && setDeletingSection(sectionMenu),
+          },
+        ]}
+      />
+      <ConfirmSheet
+        visible={deletingSection !== null}
+        title={`Delete "${deletingSection?.name ?? ''}"?`}
+        message="The tasks in this section are deleted too."
+        confirmLabel="Delete section"
+        onConfirm={() => {
+          if (deletingSection) deleteSection.mutate(deletingSection.id);
+          setDeletingSection(null);
+        }}
+        onCancel={() => setDeletingSection(null)}
       />
     </View>
   );

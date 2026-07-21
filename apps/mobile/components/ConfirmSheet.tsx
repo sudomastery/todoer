@@ -16,6 +16,7 @@ export function ConfirmSheet({
   onConfirm,
   onCancel,
   icon = 'trash-outline',
+  tone = 'destructive',
 }: {
   visible: boolean;
   title: string;
@@ -24,6 +25,12 @@ export function ConfirmSheet({
   onConfirm: () => void;
   onCancel: () => void;
   icon?: keyof typeof Ionicons.glyphMap;
+  /**
+   * 'notice' is for messages the user can only acknowledge (an error, a
+   * blocked permission): the action is not destructive and there is nothing
+   * to cancel, so the second button is dropped.
+   */
+  tone?: 'destructive' | 'notice';
 }) {
   const t = useTheme();
   const bottomInset = useBottomInset();
@@ -45,15 +52,20 @@ export function ConfirmSheet({
             onPress={onConfirm}
             style={({ pressed }) => [
               styles.confirmBtn,
-              { backgroundColor: '#d1453b', opacity: pressed ? 0.85 : 1 },
+              {
+                backgroundColor: tone === 'notice' ? t.brand : '#d1453b',
+                opacity: pressed ? 0.85 : 1,
+              },
             ]}
           >
             <Ionicons name={icon} size={17} color="#fff" />
             <Text style={styles.confirmText}>{confirmLabel}</Text>
           </Pressable>
-          <Pressable onPress={onCancel} style={({ pressed }) => [styles.cancelBtn, pressed && { backgroundColor: t.bgPressed }]}>
-            <Text style={{ color: t.fgSecondary, fontSize: 15, fontWeight: '600' }}>Cancel</Text>
-          </Pressable>
+          {tone === 'destructive' && (
+            <Pressable onPress={onCancel} style={({ pressed }) => [styles.cancelBtn, pressed && { backgroundColor: t.bgPressed }]}>
+              <Text style={{ color: t.fgSecondary, fontSize: 15, fontWeight: '600' }}>Cancel</Text>
+            </Pressable>
+          )}
         </View>
       </View>
     </Modal>

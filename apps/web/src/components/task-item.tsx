@@ -35,6 +35,7 @@ import {
   useUpdateTask,
 } from '@/lib/hooks';
 import { DuePicker } from '@/components/pickers';
+import { ConfirmDialog } from '@/components/confirm-dialog';
 import { TaskEditor } from '@/components/task-editor';
 import { IconButton } from '@/components/ui';
 
@@ -106,6 +107,7 @@ export function TaskItem({
   const { data: labels } = useLabels();
 
   const [editing, setEditing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [addingSubtask, setAddingSubtask] = useState(false);
   const [expanded, setExpanded] = useState(true);
 
@@ -239,12 +241,7 @@ export function TaskItem({
                 <Plus className="h-4 w-4" />
               </IconButton>
             )}
-            <IconButton
-              label="Delete"
-              onClick={() => {
-                if (confirm(`Delete "${task.content}"?`)) deleteTask.mutate(task.id);
-              }}
-            >
+            <IconButton label="Delete" onClick={() => setDeleting(true)}>
               <Trash2 className="h-4 w-4" />
             </IconButton>
           </div>
@@ -276,6 +273,15 @@ export function TaskItem({
           />
         </div>
       )}
+
+      <ConfirmDialog
+        open={deleting}
+        onOpenChange={setDeleting}
+        title={`Delete "${task.content}"?`}
+        message="This task will be deleted forever."
+        confirmLabel="Delete task"
+        onConfirm={() => deleteTask.mutate(task.id)}
+      />
     </div>
   );
 }
