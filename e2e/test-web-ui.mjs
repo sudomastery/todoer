@@ -93,7 +93,11 @@ try {
   const withSubs = page.getByPlaceholder(/Task name, e.g./);
   await withSubs.waitFor();
   await withSubs.fill('Plan the trip');
+  // The box is behind its chip rather than always on screen.
+  check('subtask box is hidden until asked for', !(await page.getByLabel('Add subtask').isVisible()));
+  await page.getByRole('button', { name: 'Subtasks' }).click();
   const subInput = page.getByLabel('Add subtask');
+  await subInput.waitFor();
   await subInput.fill('Book flights');
   await subInput.press('Enter');
   await subInput.fill('Pack bags');

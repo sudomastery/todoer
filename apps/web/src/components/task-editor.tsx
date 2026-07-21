@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState } from 'react';
 import clsx from 'clsx';
-import { Hash, X } from 'lucide-react';
+import { Hash, ListTree, X } from 'lucide-react';
 import {
   colorHex,
   ensureLabels,
@@ -71,6 +71,10 @@ export function TaskEditor({
   // A subtask cannot itself have children, so this is hidden when parentId is set.
   const [subtasks, setSubtasks] = useState<string[]>([]);
   const [subtaskText, setSubtaskText] = useState('');
+  // The box is revealed by its chip rather than sitting open, so a task with
+  // no subtasks is not carrying an empty field around.
+  const [showSubtasks, setShowSubtasks] = useState(false);
+  const subtaskRef = useRef<HTMLInputElement>(null);
   const canNest = !isEdit && !parentId;
 
   function addSubtask() {
@@ -177,6 +181,7 @@ export function TaskEditor({
       setDescription('');
       setSubtasks([]);
       setSubtaskText('');
+      setShowSubtasks(false);
       setDueOverride(undefined);
       setTimeOverride(undefined);
       setRecurrenceOverride(undefined);
@@ -221,7 +226,7 @@ export function TaskEditor({
         className="mt-1 w-full bg-transparent text-xs outline-none placeholder:text-fg-faint"
       />
 
-      {canNest && (
+      {canNest && (subtasks.length > 0 || showSubtasks) && (
         <div className="mt-2">
           {subtasks.map((name, i) => (
             <div key={`${name}-${i}`} className="flex items-center gap-2 py-0.5 pl-3 text-xs">
@@ -238,6 +243,7 @@ export function TaskEditor({
             </div>
           ))}
           <input
+            ref={subtaskRef}
             value={subtaskText}
             onChange={(e) => setSubtaskText(e.target.value)}
             onKeyDown={(e) => {
@@ -272,6 +278,22 @@ export function TaskEditor({
           </Chip>
         </LabelPicker>
         <RepeatChip value={effRecurrence} dueDate={effDue} onChange={setRecurrenceOverride} />
+        {canNest && (
+          <Chip
+            active={subtasks.length > 0}
+            onClick={() => {
+              setShowSubtasks(true);
+              // Opening the box and then making the user click into it would
+              // be a pointless second step.
+              requestAnimationFrame(() => subtaskRef.current?.focus());
+            }}
+          >
+            <ListTree className="h-3.5 w-3.5" />
+            {subtasks.length > 0
+              ? `${subtasks.length} subtask${subtasks.length === 1 ? '' : 's'}`
+              : 'Subtasks'}
+          </Chip>
+        )}
       </div>
 
       <div className="mt-3 flex items-center justify-between border-t border-border-default pt-3">

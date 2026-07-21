@@ -51,6 +51,10 @@ export function AddTaskSheet({
   // A subtask cannot itself have children, so this is hidden when parentId is set.
   const [subtasks, setSubtasks] = useState<string[]>([]);
   const [subtaskText, setSubtaskText] = useState('');
+  // The box is revealed by its chip rather than sitting open, so a task with
+  // no subtasks is not carrying an empty field around.
+  const [showSubtasks, setShowSubtasks] = useState(false);
+  const subtaskRef = useRef<TextInput>(null);
   const canNest = !parentId;
 
   function addSubtask() {
@@ -77,6 +81,7 @@ export function AddTaskSheet({
     setShowDetails(false);
     setSubtasks([]);
     setSubtaskText('');
+    setShowSubtasks(false);
   }
 
   async function submit() {
@@ -194,9 +199,36 @@ export function AddTaskSheet({
                 <Text style={[styles.chipText, { color: t.fgSecondary }]}>{name}</Text>
               </View>
             ))}
+            {canNest && (
+              <Pressable
+                onPress={() => {
+                  setShowSubtasks(true);
+                  // Opening the box and then making the user tap into it would
+                  // be a pointless second step.
+                  setTimeout(() => subtaskRef.current?.focus(), 0);
+                }}
+                style={chipStyle(subtasks.length > 0)}
+              >
+                <Ionicons
+                  name="git-branch-outline"
+                  size={13}
+                  color={subtasks.length > 0 ? t.brand : t.fgSecondary}
+                />
+                <Text
+                  style={[
+                    styles.chipText,
+                    { color: subtasks.length > 0 ? t.brand : t.fgSecondary },
+                  ]}
+                >
+                  {subtasks.length > 0
+                    ? `${subtasks.length} subtask${subtasks.length === 1 ? '' : 's'}`
+                    : 'Subtasks'}
+                </Text>
+              </Pressable>
+            )}
           </View>
 
-          {canNest && (
+          {canNest && (subtasks.length > 0 || showSubtasks) && (
             <View style={styles.subtasks}>
               {subtasks.map((name, i) => (
                 <View key={`${name}-${i}`} style={styles.subtaskRow}>
@@ -219,6 +251,7 @@ export function AddTaskSheet({
               <View style={styles.subtaskRow}>
                 <Ionicons name="ellipse" size={5} color="transparent" />
                 <TextInput
+                  ref={subtaskRef}
                   value={subtaskText}
                   onChangeText={setSubtaskText}
                 // Return adds another subtask rather than saving the task, so a
