@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState } from 'react';
 import clsx from 'clsx';
-import { Hash } from 'lucide-react';
+import { Hash, X } from 'lucide-react';
 import {
   colorHex,
   ensureLabels,
@@ -11,6 +11,7 @@ import {
   type TaskWithLabels,
 } from '@todoer/shared';
 import {
+  useCreateSubtasks,
   useCreateTask,
   useProjects,
   useSetTaskLabels,
@@ -36,6 +37,7 @@ export function TaskEditor({
   defaultDueDate,
   onDone,
   autoFocus = true,
+  closeOnCreate = false,
 }: {
   task?: TaskWithLabels;
   defaultProjectId?: string;
@@ -44,9 +46,16 @@ export function TaskEditor({
   defaultDueDate?: string | null;
   onDone: () => void;
   autoFocus?: boolean;
+  /**
+   * Dismiss after creating instead of clearing and staying open. The inline
+   * composers sit in the list and are meant for typing several tasks in a row,
+   * but a dialog covering the app should get out of the way once it is done.
+   */
+  closeOnCreate?: boolean;
 }) {
   const db = useSupabase();
   const createTask = useCreateTask();
+  const createSubtasks = useCreateSubtasks();
   const updateTask = useUpdateTask();
   const setTaskLabels = useSetTaskLabels();
   const { data: projects } = useProjects();
@@ -56,6 +65,20 @@ export function TaskEditor({
   const [text, setText] = useState(task?.content ?? '');
   const [description, setDescription] = useState(task?.description ?? '');
   const [saving, setSaving] = useState(false);
+
+  // Subtasks staged while the parent is still being typed. They only exist in
+  // the database once the parent does, so they are held here until submit.
+  // A subtask cannot itself have children, so this is hidden when parentId is set.
+  const [subtasks, setSubtasks] = useState<string[]>([]);
+  const [subtaskText, setSubtaskText] = useState('');
+  const canNest = !isEdit && !parentId;
+
+  function addSubtask() {
+    const name = subtaskText.trim();
+    if (!name) return;
+    setSubtasks((prev) => [...prev, name]);
+    setSubtaskText('');
+  }
 
   // explicit chip selections override parsed tokens
   const [dueOverride, setDueOverride] = useState<string | null | undefined>(
@@ -130,7 +153,7 @@ export function TaskEditor({
 
       if (!parsed?.content) return;
       const parsedLabels = await ensureLabels(db, parsed.labelNames);
-      await createTask.mutateAsync({
+      const created = await createTask.mutateAsync({
         content: parsed.content,
         description: description.trim(),
         project_id: effProjectId,
@@ -142,9 +165,18 @@ export function TaskEditor({
         recurrence: effRecurrence,
         label_ids: [...new Set([...parsedLabels.map((l) => l.id), ...effLabelIds])],
       });
+      // A name still sitting in the subtask box counts: the user typed it and
+      // pressing the main submit should not quietly drop it.
+      await createSubtasks.mutateAsync({ parent: created, names: [...subtasks, subtaskText] });
+      if (closeOnCreate) {
+        onDone();
+        return;
+      }
       // stay open for rapid entry
       setText('');
       setDescription('');
+      setSubtasks([]);
+      setSubtaskText('');
       setDueOverride(undefined);
       setTimeOverride(undefined);
       setRecurrenceOverride(undefined);
@@ -188,6 +220,42 @@ export function TaskEditor({
         placeholder="Description"
         className="mt-1 w-full bg-transparent text-xs outline-none placeholder:text-fg-faint"
       />
+
+      {canNest && (
+        <div className="mt-2">
+          {subtasks.map((name, i) => (
+            <div key={`${name}-${i}`} className="flex items-center gap-2 py-0.5 pl-3 text-xs">
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-fg-faint" />
+              <span className="flex-1 truncate">{name}</span>
+              <button
+                type="button"
+                aria-label={`Remove subtask ${name}`}
+                onClick={() => setSubtasks((prev) => prev.filter((_, j) => j !== i))}
+                className="text-fg-faint hover:text-fg"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ))}
+          <input
+            value={subtaskText}
+            onChange={(e) => setSubtaskText(e.target.value)}
+            onKeyDown={(e) => {
+              // Enter adds another subtask rather than saving the task, so a
+              // whole checklist can be typed without reaching for the mouse.
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                addSubtask();
+              }
+              if (e.key === 'Escape') onDone();
+            }}
+            aria-label="Add subtask"
+            placeholder="Add subtask"
+            // Indented past the bullet so it lines up with the rows above it.
+            className="mt-0.5 w-full bg-transparent pl-[26px] text-xs outline-none placeholder:text-fg-faint"
+          />
+        </div>
+      )}
 
       <div className="mt-3 flex flex-wrap items-center gap-1.5">
         <DueChip

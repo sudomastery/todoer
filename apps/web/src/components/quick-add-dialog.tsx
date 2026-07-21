@@ -13,7 +13,7 @@ export function QuickAddDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent title="Add task" hideClose className="border-none bg-transparent shadow-none">
-        <TaskEditor onDone={() => onOpenChange(false)} />
+        <TaskEditor closeOnCreate onDone={() => onOpenChange(false)} />
       </DialogContent>
     </Dialog>
   );

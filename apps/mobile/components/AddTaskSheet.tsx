@@ -11,7 +11,7 @@ import {
 } from '@todoer/shared';
 import { DateGrid } from './DateGrid';
 import { TimeRow } from './TimeRow';
-import { useProjects, useQuickAdd } from '../lib/hooks';
+import { useCreateSubtasks, useProjects, useQuickAdd } from '../lib/hooks';
 import { useBottomInset, useSheetMaxHeight } from '../lib/insets';
 import { useKeyboardOffset } from '../lib/keyboard';
 import { useTheme } from '../lib/theme';
@@ -31,6 +31,7 @@ export function AddTaskSheet({
 }) {
   const t = useTheme();
   const quickAdd = useQuickAdd();
+  const createSubtasks = useCreateSubtasks();
   const { data: projects } = useProjects();
   const [text, setText] = useState('');
   const inputRef = useRef<TextInput>(null);
@@ -44,6 +45,20 @@ export function AddTaskSheet({
   const [repeatOverride, setRepeatOverride] = useState<string | null | undefined>(undefined);
   const [priorityOverride, setPriorityOverride] = useState<Priority | undefined>(undefined);
   const [showDetails, setShowDetails] = useState(false);
+
+  // Subtasks staged while the parent is still being typed: they cannot be
+  // written until the parent exists, so they are held here until submit.
+  // A subtask cannot itself have children, so this is hidden when parentId is set.
+  const [subtasks, setSubtasks] = useState<string[]>([]);
+  const [subtaskText, setSubtaskText] = useState('');
+  const canNest = !parentId;
+
+  function addSubtask() {
+    const name = subtaskText.trim();
+    if (!name) return;
+    setSubtasks((prev) => [...prev, name]);
+    setSubtaskText('');
+  }
 
   const inbox = (projects ?? []).find((p) => p.is_inbox);
   const parsed = useMemo(() => parseQuickAdd(text), [text]);
@@ -60,12 +75,14 @@ export function AddTaskSheet({
     setRepeatOverride(undefined);
     setPriorityOverride(undefined);
     setShowDetails(false);
+    setSubtasks([]);
+    setSubtaskText('');
   }
 
   async function submit() {
     const projectId = defaultProjectId ?? inbox?.id;
     if (!parsed.content || !projectId) return;
-    await quickAdd.mutateAsync({
+    const created = await quickAdd.mutateAsync({
       input: text,
       defaultProjectId: projectId,
       defaultDueDate,
@@ -77,6 +94,17 @@ export function AddTaskSheet({
         priority: effPriority,
       },
     });
+    // A name still sitting in the subtask box counts: the user typed it and
+    // tapping send should not quietly drop it.
+    await createSubtasks.mutateAsync({ parent: created, names: [...subtasks, subtaskText] });
+    reset();
+    onClose();
+  }
+
+  // Dismissing throws the draft away. Keeping it meant reopening restored the
+  // old name with the caret at its end, so the next task typed ran onto the
+  // back of the abandoned one and any staged subtasks came along with it.
+  function dismiss() {
     reset();
     onClose();
   }
@@ -92,7 +120,7 @@ export function AddTaskSheet({
       animationType="slide"
       transparent
       statusBarTranslucent
-      onRequestClose={onClose}
+      onRequestClose={dismiss}
       // autoFocus alone does not raise the IME inside an Android Modal, which
       // made adding a task a two tap affair: open, tap the field, then type.
       // A single delayed focus() was unreliable (verified on the emulator: it
@@ -108,7 +136,7 @@ export function AddTaskSheet({
       }}
     >
       <View style={[styles.root, { paddingBottom: offset }]} onLayout={onLayout}>
-        <Pressable style={styles.backdrop} onPress={onClose} />
+        <Pressable style={styles.backdrop} onPress={dismiss} />
         <View
           style={[
             styles.sheet,
@@ -167,6 +195,44 @@ export function AddTaskSheet({
               </View>
             ))}
           </View>
+
+          {canNest && (
+            <View style={styles.subtasks}>
+              {subtasks.map((name, i) => (
+                <View key={`${name}-${i}`} style={styles.subtaskRow}>
+                  <Ionicons name="ellipse" size={5} color={t.fgFaint} />
+                  <Text numberOfLines={1} style={[styles.subtaskText, { color: t.fg }]}>
+                    {name}
+                  </Text>
+                  <Pressable
+                    onPress={() => setSubtasks((prev) => prev.filter((_, j) => j !== i))}
+                    hitSlop={8}
+                    accessibilityLabel={`Remove subtask ${name}`}
+                  >
+                    <Ionicons name="close" size={14} color={t.fgFaint} />
+                  </Pressable>
+                </View>
+              ))}
+              {/* Laid out as a staged row with an invisible bullet, so the
+                  typed name lines up with the rows above instead of relying on
+                  a hand-tuned indent. */}
+              <View style={styles.subtaskRow}>
+                <Ionicons name="ellipse" size={5} color="transparent" />
+                <TextInput
+                  value={subtaskText}
+                  onChangeText={setSubtaskText}
+                // Return adds another subtask rather than saving the task, so a
+                // whole checklist can be typed without leaving the keyboard.
+                  onSubmitEditing={addSubtask}
+                  blurOnSubmit={false}
+                  returnKeyType="next"
+                  placeholder="Add subtask"
+                  placeholderTextColor={t.fgFaint}
+                  style={[styles.subtaskInput, { color: t.fg }]}
+                />
+              </View>
+            </View>
+          )}
 
           {showDetails && (
             <ScrollView style={{ maxHeight: detailsMaxHeight }} keyboardShouldPersistTaps="handled">
@@ -266,6 +332,10 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   chipText: { fontSize: 12, fontWeight: '500' },
+  subtasks: { marginTop: 10, paddingLeft: 4 },
+  subtaskRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 3 },
+  subtaskText: { flex: 1, fontSize: 13 },
+  subtaskInput: { flex: 1, fontSize: 13, paddingVertical: 2, paddingLeft: 0 },
   groupLabel: { fontSize: 11, fontWeight: '700', marginTop: 14, marginBottom: 6 },
   footer: {
     flexDirection: 'row',

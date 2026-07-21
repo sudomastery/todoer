@@ -7,6 +7,7 @@ import {
   createProject,
   createSection,
   createTask,
+  createSubtasks,
   deleteComment,
   deleteLabel,
   deleteSection,
@@ -314,6 +315,16 @@ export function useSetTaskLabels() {
   return useMutation({
     mutationFn: ({ task, labelIds }: { task: Pick<Task, 'id' | 'user_id'>; labelIds: string[] }) =>
       setTaskLabels(supabase, task, labelIds),
+    onSettled: () => qc.invalidateQueries({ queryKey: ['tasks'] }),
+  });
+}
+
+/** Adds a batch of children under a task that was just created. */
+export function useCreateSubtasks() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ parent, names }: { parent: Task; names: string[] }) =>
+      createSubtasks(supabase, parent, names),
     onSettled: () => qc.invalidateQueries({ queryKey: ['tasks'] }),
   });
 }

@@ -31,7 +31,6 @@ import {
   colorHex,
   describeRecurrence,
   formatDue,
-  formatDueDate,
   formatDueTime,
   monthGrid,
   parseTimeInput,
@@ -238,7 +237,9 @@ export function DuePicker({
             >
               {q.icon}
               <span className="flex-1 text-left">{q.label}</span>
-              <span className="text-xs text-fg-faint">{formatDueDate(q.date)}</span>
+              {/* The weekday, not formatDueDate: that answers "Tomorrow" for
+                  tomorrow, so the hint just repeated the label back. */}
+              <span className="text-xs text-fg-faint">{format(parseISO(q.date), 'EEEE')}</span>
             </button>
           ))}
         </div>

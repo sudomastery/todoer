@@ -13,6 +13,7 @@ import {
   createProject,
   createSection,
   createTask,
+  createSubtasks,
   deleteComment,
   deleteLabel,
   deleteProject,
@@ -138,6 +139,17 @@ export function useCreateTask() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: NewTaskInput) => createTask(db, input),
+    onSettled: () => invalidateTasks(qc),
+  });
+}
+
+/** Adds a batch of children under a task that was just created. */
+export function useCreateSubtasks() {
+  const db = useSupabase();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ parent, names }: { parent: Task; names: string[] }) =>
+      createSubtasks(db, parent, names),
     onSettled: () => invalidateTasks(qc),
   });
 }

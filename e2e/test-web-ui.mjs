@@ -67,7 +67,48 @@ try {
   check('recurrence chip parsed', await page.getByText(/every month/).first().isVisible());
   await page.getByRole('button', { name: 'Add task' }).click();
   await page.waitForTimeout(600);
+  // The dialog dismisses itself once the task is in, rather than clearing and
+  // waiting for an Escape the way the inline composers do.
+  check('quick add dialog closes after adding', !(await qa.isVisible()));
+
+  console.log('== date presets name the weekday ==');
+  await page.keyboard.press('q');
+  await page.getByPlaceholder(/Task name, e.g./).waitFor();
+  await page.getByRole('button', { name: 'Due date' }).click();
+  const tomorrowRow = page.getByRole('button', { name: /^Tomorrow/ });
+  const tomorrowWeekday = new Date(Date.now() + 86400000).toLocaleDateString('en-US', {
+    weekday: 'long',
+  });
+  // The hint used to run formatDueDate, which answers 'Tomorrow' for tomorrow,
+  // so the row read 'Tomorrow Tomorrow'.
+  check(
+    'tomorrow preset hints the weekday, not "Tomorrow"',
+    (await tomorrowRow.innerText()).includes(tomorrowWeekday),
+  );
   await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
+
+  console.log('== subtasks entered alongside the parent ==');
+  await page.keyboard.press('q');
+  const withSubs = page.getByPlaceholder(/Task name, e.g./);
+  await withSubs.waitFor();
+  await withSubs.fill('Plan the trip');
+  const subInput = page.getByLabel('Add subtask');
+  await subInput.fill('Book flights');
+  await subInput.press('Enter');
+  await subInput.fill('Pack bags');
+  // Left uncommitted on purpose: submitting must not drop a typed name.
+  await page.getByRole('button', { name: 'Add task' }).click();
+  await page.waitForTimeout(900);
+  await page.getByRole('link', { name: /Inbox/ }).first().click();
+  await page.waitForURL('**/app/inbox');
+  await page.getByText('Plan the trip').first().waitFor();
+  await page.getByText('Book flights').first().waitFor();
+  check('subtask added via Enter was created', true);
+  await page.getByText('Pack bags').first().waitFor();
+  check('subtask left in the box on submit was still created', true);
+  await page.getByRole('link', { name: 'Today' }).click();
+  await page.waitForURL('**/app/today');
 
   console.log('== exact date, time and repeat pickers ==');
   await page.keyboard.press('q');

@@ -190,6 +190,33 @@ export async function createTask(db: Client, input: NewTaskInput): Promise<Task>
   return task;
 }
 
+/**
+ * Adds children to a task that was just created, so a task and its checklist
+ * can be entered in one pass instead of saving, reopening the task, and adding
+ * the subtasks one at a time.
+ *
+ * They are inserted in order rather than in parallel because manual sort order
+ * is assigned on insert, and concurrent writes would land the list shuffled.
+ * Blank names are dropped, which keeps a stray empty row in the composer from
+ * creating an unnamed subtask.
+ */
+export async function createSubtasks(
+  db: Client,
+  parent: Pick<Task, 'id' | 'project_id' | 'section_id'>,
+  names: string[],
+): Promise<void> {
+  for (const name of names) {
+    const content = name.trim();
+    if (!content) continue;
+    await createTask(db, {
+      content,
+      project_id: parent.project_id,
+      section_id: parent.section_id,
+      parent_id: parent.id,
+    });
+  }
+}
+
 export async function updateTask(db: Client, id: string, patch: UpdateTaskInput): Promise<void> {
   const { error } = await db.from('tasks').update(patch).eq('id', id);
   throwIf(error);
