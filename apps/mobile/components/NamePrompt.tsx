@@ -46,17 +46,18 @@ export function NamePrompt({
 
   return (
     <Modal visible={visible} animationType="slide" transparent statusBarTranslucent onRequestClose={onCancel}>
-      {/* A ScrollView (not a plain View) so keyboardShouldPersistTaps delivers
-          the first tap straight to the button. Without it, tapping Save over an
-          open keyboard dismissed the IME, the offset padding collapsed, the
-          sheet slid down out from under the finger, and the press was cancelled,
-          so every create took two taps. scrollEnabled stays off: it is only
-          here for the tap behaviour, not scrolling. */}
+      {/* A ScrollView (not a plain View) so keyboardShouldPersistTaps keeps the
+          keyboard up on the first tap and delivers that tap to the button.
+          Without it, tapping Save over an open keyboard dismissed the IME, the
+          offset padding collapsed, the sheet slid down out from under the
+          finger, and the press was cancelled, so every create took two taps.
+          scrollEnabled is left on: keyboardShouldPersistTaps is ignored when the
+          ScrollView is not an active touch responder, and the content fills the
+          viewport so nothing actually scrolls. */}
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={[styles.root, { paddingBottom: offset }]}
         keyboardShouldPersistTaps="handled"
-        scrollEnabled={false}
         onLayout={onLayout}
       >
         <Pressable style={styles.backdrop} onPress={onCancel} />

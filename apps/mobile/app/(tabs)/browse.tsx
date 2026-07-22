@@ -548,17 +548,18 @@ export default function BrowseScreen() {
         statusBarTranslucent
         onRequestClose={closeProjectDialog}
       >
-        {/* A ScrollView (not a plain View) so keyboardShouldPersistTaps hands
-            the first tap to the button. Without it, tapping Add/Save over an
-            open keyboard dismissed the IME, the offset padding collapsed, the
-            sheet slid down out from under the finger, and the press was
-            cancelled, forcing a second tap. scrollEnabled stays off; this is
-            only for the tap behaviour. */}
+        {/* A ScrollView (not a plain View) so keyboardShouldPersistTaps keeps
+            the keyboard up on the first tap and hands that tap to the button.
+            Without it, tapping Add/Save over an open keyboard dismissed the IME,
+            the offset padding collapsed, the sheet slid down out from under the
+            finger, and the press was cancelled, forcing a second tap.
+            scrollEnabled is left on: keyboardShouldPersistTaps is ignored when
+            the ScrollView is not an active touch responder, and the content
+            fills the viewport so nothing actually scrolls. */}
         <ScrollView
           style={styles.modalScroll}
           contentContainerStyle={[styles.modalRoot, { paddingBottom: keyboard.offset }]}
           keyboardShouldPersistTaps="handled"
-          scrollEnabled={false}
           onLayout={keyboard.onLayout}
         >
           <Pressable style={styles.modalBackdrop} onPress={closeProjectDialog} />
