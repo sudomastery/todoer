@@ -330,8 +330,12 @@ export function AddTaskSheet({
             <Text style={{ color: t.fgFaint, fontSize: 12 }}>
               Try: dates, p1-p4, #project, @label, every week
             </Text>
+            {/* onPressIn, not onPress: windowSoftInputMode=adjustResize means
+                tapping send dismisses the keyboard, which reflows the sheet down
+                and cancels a touch-up-based press, so onPress needed two taps.
+                onPressIn fires on touch-down, before the reflow. */}
             <Pressable
-              onPress={submit}
+              onPressIn={submit}
               disabled={!parsed.content || quickAdd.isPending}
               style={[
                 styles.sendBtn,

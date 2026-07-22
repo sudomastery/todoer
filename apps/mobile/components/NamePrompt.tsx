@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useBottomInset } from '../lib/insets';
 import { useKeyboardOffset } from '../lib/keyboard';
 import { useTheme } from '../lib/theme';
@@ -46,20 +46,7 @@ export function NamePrompt({
 
   return (
     <Modal visible={visible} animationType="slide" transparent statusBarTranslucent onRequestClose={onCancel}>
-      {/* A ScrollView (not a plain View) so keyboardShouldPersistTaps keeps the
-          keyboard up on the first tap and delivers that tap to the button.
-          Without it, tapping Save over an open keyboard dismissed the IME, the
-          offset padding collapsed, the sheet slid down out from under the
-          finger, and the press was cancelled, so every create took two taps.
-          scrollEnabled is left on: keyboardShouldPersistTaps is ignored when the
-          ScrollView is not an active touch responder, and the content fills the
-          viewport so nothing actually scrolls. */}
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[styles.root, { paddingBottom: offset }]}
-        keyboardShouldPersistTaps="handled"
-        onLayout={onLayout}
-      >
+      <View style={[styles.root, { paddingBottom: offset }]} onLayout={onLayout}>
         <Pressable style={styles.backdrop} onPress={onCancel} />
         <View
           style={[
@@ -84,7 +71,11 @@ export function NamePrompt({
             <Pressable onPress={onCancel} hitSlop={6}>
               <Text style={{ color: t.fgSecondary, fontSize: 14 }}>Cancel</Text>
             </Pressable>
-            <Pressable onPress={submit} hitSlop={6} disabled={!name.trim()}>
+            {/* onPressIn, not onPress: windowSoftInputMode=adjustResize means
+                tapping the button dismisses the keyboard, which reflows the
+                sheet down and cancels a touch-up-based press, so onPress needed
+                two taps. onPressIn fires on touch-down, before the reflow. */}
+            <Pressable onPressIn={submit} hitSlop={6} disabled={!name.trim()}>
               <Text
                 style={{
                   color: t.brand,
@@ -98,14 +89,13 @@ export function NamePrompt({
             </Pressable>
           </View>
         </View>
-      </ScrollView>
+      </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: { flex: 1 },
-  root: { flexGrow: 1, justifyContent: 'flex-end' },
+  root: { flex: 1, justifyContent: 'flex-end' },
   backdrop: { ...(StyleSheet.absoluteFill as object), backgroundColor: 'rgba(0,0,0,0.4)' },
   sheet: { borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20 },
   input: {

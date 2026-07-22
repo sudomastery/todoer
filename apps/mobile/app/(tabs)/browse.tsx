@@ -548,18 +548,8 @@ export default function BrowseScreen() {
         statusBarTranslucent
         onRequestClose={closeProjectDialog}
       >
-        {/* A ScrollView (not a plain View) so keyboardShouldPersistTaps keeps
-            the keyboard up on the first tap and hands that tap to the button.
-            Without it, tapping Add/Save over an open keyboard dismissed the IME,
-            the offset padding collapsed, the sheet slid down out from under the
-            finger, and the press was cancelled, forcing a second tap.
-            scrollEnabled is left on: keyboardShouldPersistTaps is ignored when
-            the ScrollView is not an active touch responder, and the content
-            fills the viewport so nothing actually scrolls. */}
-        <ScrollView
-          style={styles.modalScroll}
-          contentContainerStyle={[styles.modalRoot, { paddingBottom: keyboard.offset }]}
-          keyboardShouldPersistTaps="handled"
+        <View
+          style={[styles.modalRoot, { paddingBottom: keyboard.offset }]}
           onLayout={keyboard.onLayout}
         >
           <Pressable style={styles.modalBackdrop} onPress={closeProjectDialog} />
@@ -617,7 +607,11 @@ export default function BrowseScreen() {
               <Pressable onPress={closeProjectDialog} hitSlop={6}>
                 <Text style={{ color: t.fgSecondary, fontSize: 14 }}>Cancel</Text>
               </Pressable>
-              <Pressable onPress={submitProject} hitSlop={6} disabled={!projectName.trim()}>
+              {/* onPressIn, not onPress: windowSoftInputMode=adjustResize means
+                  tapping the button dismisses the keyboard, which reflows the
+                  sheet down and cancels a touch-up-based press, so onPress needed
+                  two taps. onPressIn fires on touch-down, before the reflow. */}
+              <Pressable onPressIn={submitProject} hitSlop={6} disabled={!projectName.trim()}>
                 <Text
                   style={{
                     color: t.brand,
@@ -631,7 +625,7 @@ export default function BrowseScreen() {
               </Pressable>
             </View>
           </View>
-        </ScrollView>
+        </View>
       </Modal>
 
       <NamePrompt
@@ -908,8 +902,7 @@ const styles = StyleSheet.create({
     ...(StyleSheet.absoluteFill as object),
     backgroundColor: 'rgba(0,0,0,0.4)',
   },
-  modalScroll: { flex: 1 },
-  modalRoot: { flexGrow: 1, justifyContent: 'flex-end' },
+  modalRoot: { flex: 1, justifyContent: 'flex-end' },
   modalSheet: {
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
