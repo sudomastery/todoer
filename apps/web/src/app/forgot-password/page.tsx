@@ -16,6 +16,9 @@ export default function ForgotPasswordPage() {
     e.preventDefault();
     setError(null);
     setNotice(null);
+    if (!identifier.trim()) {
+      return setError('Enter your email or username.');
+    }
     setLoading(true);
     const supabase = createClient();
     let email: string | null = null;
@@ -49,10 +52,9 @@ export default function ForgotPasswordPage() {
           Enter your email or username and we will send you a reset link.
         </p>
 
-        <form onSubmit={onSubmit} className="space-y-4">
+        <form onSubmit={onSubmit} noValidate className="space-y-4">
           <input
             type="text"
-            required
             placeholder="Email or username"
             autoCapitalize="none"
             autoCorrect="off"

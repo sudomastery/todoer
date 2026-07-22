@@ -22,6 +22,7 @@ export default function ResetPasswordPage() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    if (password.length < 6) return setError('Passwords must be at least 6 characters.');
     if (password !== confirm) return setError('Passwords do not match.');
     setLoading(true);
     const supabase = createClient();
@@ -53,11 +54,9 @@ export default function ResetPasswordPage() {
         )}
 
         {hasSession && (
-          <form onSubmit={onSubmit} className="space-y-4">
+          <form onSubmit={onSubmit} noValidate className="space-y-4">
             <input
               type="password"
-              required
-              minLength={6}
               placeholder="New password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -65,8 +64,6 @@ export default function ResetPasswordPage() {
             />
             <input
               type="password"
-              required
-              minLength={6}
               placeholder="Repeat new password"
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}

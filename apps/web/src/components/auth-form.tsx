@@ -7,6 +7,18 @@ import { CheckCircle2, Loader2 } from 'lucide-react';
 import { USERNAME_RE, isUsernameAvailable, resolveLoginEmail } from '@todoer/shared';
 import { createClient } from '@/lib/supabase/client';
 
+/**
+ * Low-level fetch failures surface as the raw string "Failed to fetch", which
+ * means nothing to a user. Map those to a plain sentence and pass anything
+ * else (real auth errors) through unchanged.
+ */
+function friendlyError(message: string): string {
+  if (/failed to fetch|networkerror|load failed/i.test(message)) {
+    return 'Could not reach the server. Check your connection and try again.';
+  }
+  return message;
+}
+
 export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
   const router = useRouter();
   const [identifier, setIdentifier] = useState('');
@@ -32,9 +44,18 @@ export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
     setNotice(null);
     const supabase = createClient();
 
+    // Validation runs through the themed error slot below rather than the
+    // browser's native "Please fill out this field" bubble, which the form
+    // suppresses with noValidate. Keeps every message in the app's own voice.
     if (mode === 'signup') {
+      if (!name.trim() || !username.trim() || !email.trim() || !password) {
+        return setError('Please fill in every field.');
+      }
       if (!USERNAME_RE.test(username)) {
         return setError('Usernames are 3-30 characters: letters, numbers, and underscores only.');
+      }
+      if (password.length < 6) {
+        return setError('Passwords must be at least 6 characters.');
       }
       setLoading(true);
       try {
@@ -54,12 +75,15 @@ export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
         },
       });
       setLoading(false);
-      if (error) return setError(error.message);
+      if (error) return setError(friendlyError(error.message));
       if (data.session) return router.push('/app/today');
       setNotice('Check your email to confirm your account, then log in.');
       return;
     }
 
+    if (!identifier.trim() || !password) {
+      return setError('Please fill in every field.');
+    }
     setLoading(true);
     let loginEmail: string | null = null;
     try {
@@ -73,7 +97,7 @@ export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
     }
     const { error } = await supabase.auth.signInWithPassword({ email: loginEmail, password });
     setLoading(false);
-    if (error) return setError(error.message);
+    if (error) return setError(friendlyError(error.message));
     router.push('/app/today');
     router.refresh();
   }
@@ -89,7 +113,7 @@ export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
       provider: 'google',
       options: { redirectTo: `${window.location.origin}/auth/callback` },
     });
-    if (error) setError(error.message);
+    if (error) setError(friendlyError(error.message));
   }
 
   const inputClass =
@@ -107,12 +131,11 @@ export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
           {mode === 'login' ? 'Log in to Todoer' : 'Create your account'}
         </h1>
 
-        <form onSubmit={onSubmit} className="space-y-4">
+        <form onSubmit={onSubmit} noValidate className="space-y-4">
           {mode === 'signup' && (
             <>
               <input
                 type="text"
-                required
                 placeholder="Your name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -120,7 +143,6 @@ export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
               />
               <input
                 type="text"
-                required
                 placeholder="Username"
                 autoCapitalize="none"
                 autoCorrect="off"
@@ -130,7 +152,6 @@ export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
               />
               <input
                 type="email"
-                required
                 placeholder="Email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -141,7 +162,6 @@ export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
           {mode === 'login' && (
             <input
               type="text"
-              required
               placeholder="Email or username"
               autoCapitalize="none"
               autoCorrect="off"
@@ -152,8 +172,6 @@ export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
           )}
           <input
             type="password"
-            required
-            minLength={6}
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
