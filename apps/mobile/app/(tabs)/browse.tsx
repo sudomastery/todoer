@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Modal,
   Pressable,
@@ -52,7 +52,7 @@ import {
 } from '../../lib/sound';
 import { supabase } from '../../lib/supabase';
 import { useBottomInset } from '../../lib/insets';
-import { useKeyboardOffset } from '../../lib/keyboard';
+import { raiseSoftKeyboard, useKeyboardOffset } from '../../lib/keyboard';
 import { useAccentId, useTheme, setAccentId } from '../../lib/theme';
 import { ACCENT_THEMES } from '@todoer/shared';
 
@@ -327,6 +327,7 @@ export default function BrowseScreen() {
   const [addingProject, setAddingProject] = useState(false);
   const [renamingProjectId, setRenamingProjectId] = useState<string | null>(null);
   const [projectName, setProjectName] = useState('');
+  const projectInputRef = useRef<TextInput>(null);
   const [projectColor, setProjectColor] = useState('blue');
   const [projectFavorite, setProjectFavorite] = useState(false);
   const [labelPrompt, setLabelPrompt] = useState<{ id?: string; name: string } | null>(null);
@@ -555,6 +556,7 @@ export default function BrowseScreen() {
         transparent
         statusBarTranslucent
         onRequestClose={closeProjectDialog}
+        onShow={() => raiseSoftKeyboard(projectInputRef.current)}
       >
         <View
           style={[styles.modalRoot, { paddingBottom: keyboard.offset }]}
@@ -571,7 +573,7 @@ export default function BrowseScreen() {
               {renamingProjectId ? 'Edit project' : 'Add project'}
             </Text>
             <TextInput
-              autoFocus
+              ref={projectInputRef}
               value={projectName}
               onChangeText={setProjectName}
               onSubmitEditing={submitProject}

@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useBottomInset } from '../lib/insets';
-import { useKeyboardOffset } from '../lib/keyboard';
+import { raiseSoftKeyboard, useKeyboardOffset } from '../lib/keyboard';
 import { useTheme } from '../lib/theme';
 
 /**
@@ -31,6 +31,7 @@ export function NamePrompt({
   const [name, setName] = useState(initial);
   const bottomInset = useBottomInset();
   const { offset, onLayout } = useKeyboardOffset();
+  const inputRef = useRef<TextInput>(null);
 
   useEffect(() => {
     if (visible) setName(initial);
@@ -43,7 +44,14 @@ export function NamePrompt({
   }
 
   return (
-    <Modal visible={visible} animationType="slide" transparent statusBarTranslucent onRequestClose={onCancel}>
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent
+      statusBarTranslucent
+      onRequestClose={onCancel}
+      onShow={() => raiseSoftKeyboard(inputRef.current)}
+    >
       <View style={[styles.root, { paddingBottom: offset }]} onLayout={onLayout}>
         <Pressable style={styles.backdrop} onPress={onCancel} />
         <View
@@ -56,7 +64,7 @@ export function NamePrompt({
             {title}
           </Text>
           <TextInput
-            autoFocus
+            ref={inputRef}
             value={name}
             onChangeText={setName}
             onSubmitEditing={submit}

@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import { Keyboard, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import {
   describeRecurrence,
@@ -13,7 +13,7 @@ import { DateGrid } from './DateGrid';
 import { TimeRow } from './TimeRow';
 import { useCreateSubtasks, useProjects, useQuickAdd } from '../lib/hooks';
 import { useBottomInset, useSheetMaxHeight } from '../lib/insets';
-import { useKeyboardOffset } from '../lib/keyboard';
+import { raiseSoftKeyboard, useKeyboardOffset } from '../lib/keyboard';
 import { useTheme } from '../lib/theme';
 
 export function AddTaskSheet({
@@ -126,19 +126,8 @@ export function AddTaskSheet({
       transparent
       statusBarTranslucent
       onRequestClose={dismiss}
-      // autoFocus alone does not raise the IME inside an Android Modal, which
-      // made adding a task a two tap affair: open, tap the field, then type.
-      // A single delayed focus() was unreliable (verified on the emulator: it
-      // landed before the native window actually had input focus, especially
-      // right after a cold start), so this retries at a few delays until the
-      // keyboard is confirmed up.
-      onShow={() => {
-        [0, 100, 250, 450].forEach((delay) => {
-          setTimeout(() => {
-            if (!Keyboard.isVisible()) inputRef.current?.focus();
-          }, delay);
-        });
-      }}
+      // Raise the keyboard on open so the user can type immediately.
+      onShow={() => raiseSoftKeyboard(inputRef.current)}
     >
       <View style={[styles.root, { paddingBottom: offset }]} onLayout={onLayout}>
         <Pressable style={styles.backdrop} onPress={dismiss} />
@@ -150,7 +139,6 @@ export function AddTaskSheet({
         >
           <TextInput
             ref={inputRef}
-            autoFocus
             value={text}
             onChangeText={setText}
             onSubmitEditing={submit}
