@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Animated, StyleSheet, View } from 'react-native';
+import { Animated, Easing, StyleSheet, View } from 'react-native';
 import { useTheme } from '../lib/theme';
 
 const WIDTHS: `${number}%`[] = ['68%', '52%', '78%', '44%', '61%'];
@@ -7,10 +7,13 @@ const WIDTHS: `${number}%`[] = ['68%', '52%', '78%', '44%', '61%'];
 function usePulse() {
   const value = useRef(new Animated.Value(0.4)).current;
   useEffect(() => {
+    // Ease in and out so the pulse breathes smoothly rather than tracking a
+    // hard linear ramp that visibly snaps at each end.
+    const ease = Easing.inOut(Easing.ease);
     const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(value, { toValue: 1, duration: 700, useNativeDriver: true }),
-        Animated.timing(value, { toValue: 0.4, duration: 700, useNativeDriver: true }),
+        Animated.timing(value, { toValue: 1, duration: 750, easing: ease, useNativeDriver: true }),
+        Animated.timing(value, { toValue: 0.45, duration: 750, easing: ease, useNativeDriver: true }),
       ]),
     );
     loop.start();

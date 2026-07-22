@@ -3,23 +3,22 @@ import { Keyboard, LayoutChangeEvent, Platform, TextInput } from 'react-native';
 
 /**
  * Raise the soft keyboard for a text field when a sheet or dialog opens, so the
- * user can type right away instead of tapping the field first.
+ * user can type right away instead of tapping the field first. Call from the
+ * Modal's onShow (and leave autoFocus off, which does not raise the IME inside
+ * an Android Modal anyway).
  *
- * autoFocus does not raise the IME inside an Android Modal, and a plain focus()
- * is a no-op once the field already holds focus, so blur()+focus() is used to
- * force it. Retried past the sheet's slide-in because the moment the modal
- * window can accept IME focus varies by device; the checks stop once the
- * keyboard is up. Call from the Modal's onShow.
+ * A single focus() once the sheet's slide-in has settled: the field starts
+ * unfocused, so one focus is enough to raise the IME, and it lets the OS
+ * animate the keyboard up in one smooth motion. Earlier versions repeated
+ * blur()+focus(), which re-triggered the IME mid-animation and made it stutter.
  */
 export function raiseSoftKeyboard(input: TextInput | null): void {
-  [80, 250, 500].forEach((delay) => {
-    setTimeout(() => {
-      if (Keyboard.isVisible()) return;
-      input?.blur();
-      input?.focus();
-    }, delay);
-  });
+  setTimeout(() => input?.focus(), SLIDE_SETTLE_MS);
 }
+
+// A touch past the Modal slide-in (~300ms) so the keyboard rises as the sheet
+// lands, rather than fighting the slide.
+const SLIDE_SETTLE_MS = 260;
 
 /**
  * Bottom padding that keeps a bottom-anchored view above the on-screen keyboard.
