@@ -51,6 +51,7 @@ import {
   type SoundPref,
 } from '../../lib/sound';
 import { supabase } from '../../lib/supabase';
+import { useBottomInset } from '../../lib/insets';
 import { useKeyboardOffset } from '../../lib/keyboard';
 import { useAccentId, useTheme, setAccentId } from '../../lib/theme';
 import { ACCENT_THEMES } from '@todoer/shared';
@@ -309,6 +310,7 @@ function SoundSetting() {
 export default function BrowseScreen() {
   const t = useTheme();
   const keyboard = useKeyboardOffset();
+  const bottomInset = useBottomInset();
   const router = useRouter();
   const { data: projects } = useProjects();
   const { data: labels } = useLabels();
@@ -541,18 +543,31 @@ export default function BrowseScreen() {
 
       <Modal
         visible={addingProject}
-        animationType="fade"
+        animationType="slide"
         transparent
         statusBarTranslucent
         onRequestClose={closeProjectDialog}
       >
-        <Pressable style={styles.modalBackdrop} onPress={closeProjectDialog} />
-        <View
-          style={[styles.modalCenter, { paddingBottom: 32 + keyboard.offset }]}
+        {/* A ScrollView (not a plain View) so keyboardShouldPersistTaps hands
+            the first tap to the button. Without it, tapping Add/Save over an
+            open keyboard dismissed the IME, the offset padding collapsed, the
+            sheet slid down out from under the finger, and the press was
+            cancelled, forcing a second tap. scrollEnabled stays off; this is
+            only for the tap behaviour. */}
+        <ScrollView
+          style={styles.modalScroll}
+          contentContainerStyle={[styles.modalRoot, { paddingBottom: keyboard.offset }]}
+          keyboardShouldPersistTaps="handled"
+          scrollEnabled={false}
           onLayout={keyboard.onLayout}
-          pointerEvents="box-none"
         >
-          <View style={[styles.modalCard, { backgroundColor: t.bgElevated }]}>
+          <Pressable style={styles.modalBackdrop} onPress={closeProjectDialog} />
+          <View
+            style={[
+              styles.modalSheet,
+              { backgroundColor: t.bgElevated, paddingBottom: 16 + bottomInset },
+            ]}
+          >
             <Text style={[styles.sectionTitle, { color: t.fg, marginBottom: 10 }]}>
               {renamingProjectId ? 'Edit project' : 'Add project'}
             </Text>
@@ -615,7 +630,7 @@ export default function BrowseScreen() {
               </Pressable>
             </View>
           </View>
-        </View>
+        </ScrollView>
       </Modal>
 
       <NamePrompt
@@ -892,16 +907,12 @@ const styles = StyleSheet.create({
     ...(StyleSheet.absoluteFill as object),
     backgroundColor: 'rgba(0,0,0,0.4)',
   },
-  modalCenter: {
-    ...(StyleSheet.absoluteFill as object),
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 32,
-  },
-  modalCard: {
-    alignSelf: 'stretch',
-    borderRadius: 14,
-    padding: 18,
+  modalScroll: { flex: 1 },
+  modalRoot: { flexGrow: 1, justifyContent: 'flex-end' },
+  modalSheet: {
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    padding: 20,
   },
   modalInput: {
     borderWidth: 1,

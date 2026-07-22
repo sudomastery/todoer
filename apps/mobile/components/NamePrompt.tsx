@@ -1,9 +1,17 @@
 import { useEffect, useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useBottomInset } from '../lib/insets';
 import { useKeyboardOffset } from '../lib/keyboard';
 import { useTheme } from '../lib/theme';
 
-/** Small centered dialog for naming or renaming something. */
+/**
+ * Bottom sheet for naming or renaming something.
+ *
+ * This was a centred card. Every other surface in the app is a bottom sheet,
+ * and the centred ones had a bug the sheets do not: with the keyboard up the
+ * first tap on any control was swallowed dismissing the IME instead of
+ * reaching the button, so every create took two taps.
+ */
 export function NamePrompt({
   visible,
   title,
@@ -23,6 +31,7 @@ export function NamePrompt({
 }) {
   const t = useTheme();
   const [name, setName] = useState(initial);
+  const bottomInset = useBottomInset();
   const { offset, onLayout } = useKeyboardOffset();
 
   useEffect(() => {
@@ -36,10 +45,27 @@ export function NamePrompt({
   }
 
   return (
-    <Modal visible={visible} animationType="fade" transparent statusBarTranslucent onRequestClose={onCancel}>
-      <View style={[styles.root, { paddingBottom: offset }]} onLayout={onLayout}>
+    <Modal visible={visible} animationType="slide" transparent statusBarTranslucent onRequestClose={onCancel}>
+      {/* A ScrollView (not a plain View) so keyboardShouldPersistTaps delivers
+          the first tap straight to the button. Without it, tapping Save over an
+          open keyboard dismissed the IME, the offset padding collapsed, the
+          sheet slid down out from under the finger, and the press was cancelled,
+          so every create took two taps. scrollEnabled stays off: it is only
+          here for the tap behaviour, not scrolling. */}
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.root, { paddingBottom: offset }]}
+        keyboardShouldPersistTaps="handled"
+        scrollEnabled={false}
+        onLayout={onLayout}
+      >
         <Pressable style={styles.backdrop} onPress={onCancel} />
-        <View style={[styles.card, { backgroundColor: t.bgElevated }]}>
+        <View
+          style={[
+            styles.sheet,
+            { backgroundColor: t.bgElevated, paddingBottom: 16 + bottomInset },
+          ]}
+        >
           <Text style={{ color: t.fg, fontSize: 16, fontWeight: '700', marginBottom: 10 }}>
             {title}
           </Text>
@@ -71,15 +97,16 @@ export function NamePrompt({
             </Pressable>
           </View>
         </View>
-      </View>
+      </ScrollView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
+  scroll: { flex: 1 },
+  root: { flexGrow: 1, justifyContent: 'flex-end' },
   backdrop: { ...(StyleSheet.absoluteFill as object), backgroundColor: 'rgba(0,0,0,0.4)' },
-  card: { alignSelf: 'stretch', borderRadius: 14, padding: 18 },
+  sheet: { borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20 },
   input: {
     borderWidth: 1,
     borderRadius: 8,
