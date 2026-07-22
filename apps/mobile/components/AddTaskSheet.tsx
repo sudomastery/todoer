@@ -249,7 +249,9 @@ export function AddTaskSheet({
                   typed name lines up with the rows above instead of relying on
                   a hand-tuned indent. */}
               <View style={styles.subtaskRow}>
-                <Ionicons name="ellipse" size={5} color="transparent" />
+                {/* Hidden with opacity rather than a transparent colour, which
+                    the icon font ignores and draws black. */}
+                <Ionicons name="ellipse" size={5} color={t.fgFaint} style={{ opacity: 0 }} />
                 <TextInput
                   ref={subtaskRef}
                   value={subtaskText}
