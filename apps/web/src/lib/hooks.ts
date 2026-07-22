@@ -139,7 +139,14 @@ export function useCreateTask() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: NewTaskInput) => createTask(db, input),
-    onSettled: () => invalidateTasks(qc),
+    onSettled: () => {
+      invalidateTasks(qc);
+      // Quick-add can mint new labels from @tokens via ensureLabels, which does
+      // not touch the query cache. Without this the labels list keeps serving
+      // its stale (empty) copy for the 30s staleTime, so a just-typed @label
+      // never shows up until a realtime ping or a hard refresh happens to land.
+      qc.invalidateQueries({ queryKey: ['labels'] });
+    },
   });
 }
 
