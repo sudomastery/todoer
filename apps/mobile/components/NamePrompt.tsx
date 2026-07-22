@@ -5,12 +5,10 @@ import { useKeyboardOffset } from '../lib/keyboard';
 import { useTheme } from '../lib/theme';
 
 /**
- * Bottom sheet for naming or renaming something.
- *
- * This was a centred card. Every other surface in the app is a bottom sheet,
- * and the centred ones had a bug the sheets do not: with the keyboard up the
- * first tap on any control was swallowed dismissing the IME instead of
- * reaching the button, so every create took two taps.
+ * Bottom sheet for naming or renaming something, matching the app's other
+ * sheets. The host screen's ScrollView must set keyboardShouldPersistTaps
+ * ("handled"), otherwise its default swallows the first tap on these buttons
+ * to dismiss the keyboard and every create takes two taps.
  */
 export function NamePrompt({
   visible,
@@ -67,16 +65,12 @@ export function NamePrompt({
             style={[styles.input, { color: t.fg, borderColor: t.border }]}
             returnKeyType="done"
           />
-          {/* Padded, full-size buttons rather than bare text. A tap that lands
-              just outside a glyph-sized target falls through to the sheet, which
-              dismisses the keyboard instead of pressing, so the create needed a
-              second tap. onPressIn (not onPress) also matters: adjustResize
-              reflows the sheet down as the keyboard hides, cancelling a
-              touch-up-based press; touch-down fires before the reflow. */}
           <View style={styles.actions}>
             <Pressable onPress={onCancel} style={styles.btn}>
               <Text style={{ color: t.fgSecondary, fontSize: 14, fontWeight: '600' }}>Cancel</Text>
             </Pressable>
+            {/* onPressIn matches the add-task send button; with the host
+                ScrollView persisting taps the first press already lands. */}
             <Pressable
               onPressIn={submit}
               disabled={!name.trim()}

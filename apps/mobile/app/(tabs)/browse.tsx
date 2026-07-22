@@ -372,7 +372,15 @@ export default function BrowseScreen() {
   }
 
   return (
-    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 60 }}>
+    <ScrollView
+      style={{ flex: 1 }}
+      contentContainerStyle={{ padding: 16, paddingBottom: 60 }}
+      // Without this the ScrollView defaults to keyboardShouldPersistTaps="never"
+      // and dismisses the keyboard on the first tap of anything inside it,
+      // including the add/rename/label dialog buttons rendered in this tree, so
+      // that first tap only closed the keyboard and the create took two taps.
+      keyboardShouldPersistTaps="handled"
+    >
       <Pressable
         onPress={() => router.push('/search')}
         style={({ pressed }) => [
@@ -603,12 +611,10 @@ export default function BrowseScreen() {
               <Text style={{ color: t.fg, fontSize: 14 }}>Add to favorites</Text>
             </Pressable>
 
-            {/* Padded, full-size buttons rather than bare text. A tap that lands
-                just outside a glyph-sized target falls through to the sheet,
-                which dismisses the keyboard instead of pressing, so the create
-                needed a second tap. onPressIn (not onPress) also matters:
-                adjustResize reflows the sheet down as the keyboard hides,
-                cancelling a touch-up-based press; touch-down fires before it. */}
+            {/* Padded, full-size filled buttons rather than bare text, matching
+                the app's other sheets. onPressIn matches the add-task send
+                button; the screen ScrollView's keyboardShouldPersistTaps keeps
+                the first tap from being eaten by a keyboard dismiss. */}
             <View style={styles.modalActions}>
               <Pressable onPress={closeProjectDialog} style={styles.modalBtn}>
                 <Text style={{ color: t.fgSecondary, fontSize: 14, fontWeight: '600' }}>Cancel</Text>
