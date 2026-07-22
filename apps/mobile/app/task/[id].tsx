@@ -32,7 +32,6 @@ import {
 } from '../../lib/hooks';
 import { AddTaskSheet } from '../../components/AddTaskSheet';
 import { TaskEditSheet } from '../../components/TaskEditSheet';
-import { useBottomInset } from '../../lib/insets';
 import { ConfirmSheet } from '../../components/ConfirmSheet';
 import { useKeyboardOffset } from '../../lib/keyboard';
 import { useTheme } from '../../lib/theme';
@@ -41,7 +40,6 @@ export default function TaskDetailScreen() {
   const t = useTheme();
   const router = useRouter();
   const { offset, onLayout } = useKeyboardOffset();
-  const bottomInset = useBottomInset(offset);
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: active } = useActiveTasks();
   const { data: completedTasks } = useCompletedTasks();
@@ -85,7 +83,12 @@ export default function TaskDetailScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: t.bg, paddingBottom: offset }} onLayout={onLayout}>
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 30 }}>
+      <ScrollView
+        contentContainerStyle={{ padding: 16, paddingBottom: 30 }}
+        // The comment composer lives in this scroll view, so persist taps or the
+        // first tap on Send over the keyboard is eaten dismissing the keyboard.
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={styles.headRow}>
           <Pressable
             onPress={() =>
@@ -188,6 +191,32 @@ export default function TaskDetailScreen() {
         <Text style={[styles.sectionTitle, { color: t.fg, borderTopColor: t.border }]}>
           Comments{comments && comments.length > 0 ? ` (${comments.length})` : ''}
         </Text>
+
+        <View style={styles.composer}>
+          <TextInput
+            value={commentText}
+            onChangeText={setCommentText}
+            placeholder="Add a comment"
+            placeholderTextColor={t.fgFaint}
+            style={[
+              styles.composerInput,
+              { color: t.fg, borderColor: t.border, backgroundColor: t.bgElevated },
+            ]}
+            onSubmitEditing={submitComment}
+            returnKeyType="send"
+          />
+          <Pressable
+            onPress={submitComment}
+            disabled={!commentText.trim() || addComment.isPending}
+            style={[
+              styles.sendBtn,
+              { backgroundColor: t.brand, opacity: commentText.trim() ? 1 : 0.4 },
+            ]}
+          >
+            <Ionicons name="arrow-up" size={18} color="#fff" />
+          </Pressable>
+        </View>
+
         {(comments ?? []).map((c) => (
           <View key={c.id} style={[styles.comment, { borderBottomColor: t.border }]}>
             <View style={{ flex: 1 }}>
@@ -237,35 +266,6 @@ export default function TaskDetailScreen() {
         parentId={task.id}
       />
 
-      <View
-        style={[
-          styles.composer,
-          { borderTopColor: t.border, backgroundColor: t.bg, paddingBottom: 12 + bottomInset },
-        ]}
-      >
-        <TextInput
-          value={commentText}
-          onChangeText={setCommentText}
-          placeholder="Add a comment"
-          placeholderTextColor={t.fgFaint}
-          style={[
-            styles.composerInput,
-            { color: t.fg, borderColor: t.border, backgroundColor: t.bgElevated },
-          ]}
-          onSubmitEditing={submitComment}
-          returnKeyType="send"
-        />
-        <Pressable
-          onPress={submitComment}
-          disabled={!commentText.trim() || addComment.isPending}
-          style={[
-            styles.sendBtn,
-            { backgroundColor: t.brand, opacity: commentText.trim() ? 1 : 0.4 },
-          ]}
-        >
-          <Ionicons name="arrow-up" size={18} color="#fff" />
-        </Pressable>
-      </View>
     </View>
   );
 }
@@ -325,8 +325,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    padding: 12,
-    borderTopWidth: StyleSheet.hairlineWidth,
+    marginBottom: 6,
   },
   composerInput: {
     flex: 1,
