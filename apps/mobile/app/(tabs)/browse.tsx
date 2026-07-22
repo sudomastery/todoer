@@ -603,23 +603,22 @@ export default function BrowseScreen() {
               <Text style={{ color: t.fg, fontSize: 14 }}>Add to favorites</Text>
             </Pressable>
 
+            {/* Padded, full-size buttons rather than bare text. A tap that lands
+                just outside a glyph-sized target falls through to the sheet,
+                which dismisses the keyboard instead of pressing, so the create
+                needed a second tap. onPressIn (not onPress) also matters:
+                adjustResize reflows the sheet down as the keyboard hides,
+                cancelling a touch-up-based press; touch-down fires before it. */}
             <View style={styles.modalActions}>
-              <Pressable onPress={closeProjectDialog} hitSlop={6}>
-                <Text style={{ color: t.fgSecondary, fontSize: 14 }}>Cancel</Text>
+              <Pressable onPress={closeProjectDialog} style={styles.modalBtn}>
+                <Text style={{ color: t.fgSecondary, fontSize: 14, fontWeight: '600' }}>Cancel</Text>
               </Pressable>
-              {/* onPressIn, not onPress: windowSoftInputMode=adjustResize means
-                  tapping the button dismisses the keyboard, which reflows the
-                  sheet down and cancels a touch-up-based press, so onPress needed
-                  two taps. onPressIn fires on touch-down, before the reflow. */}
-              <Pressable onPressIn={submitProject} hitSlop={6} disabled={!projectName.trim()}>
-                <Text
-                  style={{
-                    color: t.brand,
-                    fontSize: 14,
-                    fontWeight: '700',
-                    opacity: projectName.trim() ? 1 : 0.4,
-                  }}
-                >
+              <Pressable
+                onPressIn={submitProject}
+                disabled={!projectName.trim()}
+                style={[styles.modalBtn, styles.modalBtnPrimary, { backgroundColor: t.brand, opacity: projectName.trim() ? 1 : 0.4 }]}
+              >
+                <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>
                   {renamingProjectId ? 'Save' : 'Add'}
                 </Text>
               </Pressable>
@@ -918,9 +917,11 @@ const styles = StyleSheet.create({
   modalActions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    gap: 24,
+    gap: 12,
     marginTop: 16,
   },
+  modalBtn: { paddingVertical: 9, paddingHorizontal: 16, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  modalBtnPrimary: { minWidth: 72 },
   swatchRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingVertical: 4 },
   swatch: { width: 24, height: 24, borderRadius: 12 },
   favoriteRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 12 },

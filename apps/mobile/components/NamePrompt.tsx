@@ -67,25 +67,22 @@ export function NamePrompt({
             style={[styles.input, { color: t.fg, borderColor: t.border }]}
             returnKeyType="done"
           />
+          {/* Padded, full-size buttons rather than bare text. A tap that lands
+              just outside a glyph-sized target falls through to the sheet, which
+              dismisses the keyboard instead of pressing, so the create needed a
+              second tap. onPressIn (not onPress) also matters: adjustResize
+              reflows the sheet down as the keyboard hides, cancelling a
+              touch-up-based press; touch-down fires before the reflow. */}
           <View style={styles.actions}>
-            <Pressable onPress={onCancel} hitSlop={6}>
-              <Text style={{ color: t.fgSecondary, fontSize: 14 }}>Cancel</Text>
+            <Pressable onPress={onCancel} style={styles.btn}>
+              <Text style={{ color: t.fgSecondary, fontSize: 14, fontWeight: '600' }}>Cancel</Text>
             </Pressable>
-            {/* onPressIn, not onPress: windowSoftInputMode=adjustResize means
-                tapping the button dismisses the keyboard, which reflows the
-                sheet down and cancels a touch-up-based press, so onPress needed
-                two taps. onPressIn fires on touch-down, before the reflow. */}
-            <Pressable onPressIn={submit} hitSlop={6} disabled={!name.trim()}>
-              <Text
-                style={{
-                  color: t.brand,
-                  fontSize: 14,
-                  fontWeight: '700',
-                  opacity: name.trim() ? 1 : 0.4,
-                }}
-              >
-                {confirmLabel}
-              </Text>
+            <Pressable
+              onPressIn={submit}
+              disabled={!name.trim()}
+              style={[styles.btn, styles.btnPrimary, { backgroundColor: t.brand, opacity: name.trim() ? 1 : 0.4 }]}
+            >
+              <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>{confirmLabel}</Text>
             </Pressable>
           </View>
         </View>
@@ -105,5 +102,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 15,
   },
-  actions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 24, marginTop: 16 },
+  actions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 12, marginTop: 16 },
+  btn: { paddingVertical: 9, paddingHorizontal: 16, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  btnPrimary: { minWidth: 72 },
 });
