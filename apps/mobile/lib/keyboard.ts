@@ -1,5 +1,31 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Keyboard, LayoutChangeEvent, Platform, TextInput } from 'react-native';
+import {
+  Keyboard,
+  LayoutAnimation,
+  LayoutChangeEvent,
+  Platform,
+  TextInput,
+  UIManager,
+} from 'react-native';
+
+// LayoutAnimation is opt-in on Android; enable it once so the keyboard offset
+// below can animate the content up rather than snapping.
+if (
+  Platform.OS === 'android' &&
+  UIManager.setLayoutAnimationEnabledExperimental
+) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
+// Glide the layout to its new size over the keyboard's own show/hide duration
+// so a sheet or composer rises and falls smoothly with the keys instead of
+// jumping the instant the offset changes.
+function animateKeyboardShift() {
+  LayoutAnimation.configureNext({
+    duration: 220,
+    update: { type: LayoutAnimation.Types.easeInEaseOut },
+  });
+}
 
 /**
  * Raise the soft keyboard for a text field when a sheet or dialog opens, so the
@@ -16,9 +42,9 @@ export function raiseSoftKeyboard(input: TextInput | null): void {
   setTimeout(() => input?.focus(), SLIDE_SETTLE_MS);
 }
 
-// A touch past the Modal slide-in (~300ms) so the keyboard rises as the sheet
-// lands, rather than fighting the slide.
-const SLIDE_SETTLE_MS = 260;
+// Partway into the Modal slide-in (~300ms) so the keyboard rises as the sheet
+// is landing, reading as one continuous motion rather than sheet-then-keyboard.
+const SLIDE_SETTLE_MS = 150;
 
 /**
  * Bottom padding that keeps a bottom-anchored view above the on-screen keyboard.
@@ -45,8 +71,14 @@ export function useKeyboardOffset(): {
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-    const show = Keyboard.addListener(showEvent, (e) => setKeyboardHeight(e.endCoordinates.height));
-    const hide = Keyboard.addListener(hideEvent, () => setKeyboardHeight(0));
+    const show = Keyboard.addListener(showEvent, (e) => {
+      animateKeyboardShift();
+      setKeyboardHeight(e.endCoordinates.height);
+    });
+    const hide = Keyboard.addListener(hideEvent, () => {
+      animateKeyboardShift();
+      setKeyboardHeight(0);
+    });
     return () => {
       show.remove();
       hide.remove();
