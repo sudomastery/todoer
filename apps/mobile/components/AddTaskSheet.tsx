@@ -122,11 +122,15 @@ export function AddTaskSheet({
   return (
     <Modal
       visible={visible}
-      animationType="slide"
+      // The keyboard's own rise is the entrance (see raiseSoftKeyboard): a
+      // slide here would run at the same time and fight it, which is what
+      // made opening this sheet look janky next to a plain field's smooth
+      // keyboard-only animation. The sheet appears docked at the bottom with
+      // no keyboard offset yet, then rides up as the keyboard animates in.
+      animationType="none"
       transparent
       statusBarTranslucent
       onRequestClose={dismiss}
-      // Raise the keyboard on open so the user can type immediately.
       onShow={() => raiseSoftKeyboard(inputRef.current)}
     >
       <View style={[styles.root, { paddingBottom: offset }]} onLayout={onLayout}>

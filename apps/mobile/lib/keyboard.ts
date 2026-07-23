@@ -39,12 +39,15 @@ function animateKeyboardShift() {
  * blur()+focus(), which re-triggered the IME mid-animation and made it stutter.
  */
 export function raiseSoftKeyboard(input: TextInput | null): void {
-  setTimeout(() => input?.focus(), SLIDE_SETTLE_MS);
+  setTimeout(() => input?.focus(), FOCUS_DELAY_MS);
 }
 
-// Partway into the Modal slide-in (~300ms) so the keyboard rises as the sheet
-// is landing, reading as one continuous motion rather than sheet-then-keyboard.
-const SLIDE_SETTLE_MS = 150;
+// Focus almost immediately once the modal window exists. The sheets open with
+// animationType="none", so there is no slide to wait out: the keyboard's own
+// rise is the entrance, and it lifts the docked sheet up with it (the same
+// smooth, OS-driven motion an already-on-screen input gets on tap). A tiny
+// delay lets the just-shown window accept IME focus.
+const FOCUS_DELAY_MS = 40;
 
 /**
  * Bottom padding that keeps a bottom-anchored view above the on-screen keyboard.

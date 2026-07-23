@@ -46,7 +46,11 @@ export function NamePrompt({
   return (
     <Modal
       visible={visible}
-      animationType="slide"
+      // The keyboard's own rise is the entrance (see raiseSoftKeyboard): a
+      // slide here would run at the same time and fight it. The sheet appears
+      // docked at the bottom with no keyboard offset yet, then rides up as the
+      // keyboard animates in, the same smooth motion a plain field gets.
+      animationType="none"
       transparent
       statusBarTranslucent
       onRequestClose={onCancel}
