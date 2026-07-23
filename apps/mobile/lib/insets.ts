@@ -15,7 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
  * the emulator). Padding by inset plus keyboard offset lands the control just
  * above the keys on every nav mode; the worst case is a few spare pixels.
  */
-export function useBottomInset(_keyboardOffset = 0): number {
+export function useBottomInset(): number {
   const insets = useSafeAreaInsets();
   return Math.max(insets.bottom, 8);
 }

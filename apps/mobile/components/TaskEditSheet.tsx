@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { format, addDays, nextSaturday } from 'date-fns';
 import { Ionicons } from '@expo/vector-icons';
 import {
@@ -15,7 +16,6 @@ import { DateGrid } from './DateGrid';
 import { TimeRow } from './TimeRow';
 import { useLabels, useProjects, useSetTaskLabels, useUpdateTask } from '../lib/hooks';
 import { useBottomInset, useSheetMaxHeight } from '../lib/insets';
-import { useKeyboardOffset } from '../lib/keyboard';
 import { useTheme } from '../lib/theme';
 
 function iso(d: Date): string {
@@ -47,8 +47,7 @@ export function TaskEditSheet({
   const [recurrence, setRecurrence] = useState<string | null>(task.recurrence);
   const [showGrid, setShowGrid] = useState(false);
   const [labelIds, setLabelIds] = useState<string[]>(task.label_ids);
-  const { offset, onLayout } = useKeyboardOffset();
-  const bottomInset = useBottomInset(offset);
+  const bottomInset = useBottomInset();
   const sheetMaxHeight = useSheetMaxHeight();
 
   useEffect(() => {
@@ -103,7 +102,7 @@ export function TaskEditSheet({
 
   return (
     <Modal visible={visible} animationType="slide" transparent statusBarTranslucent onRequestClose={onClose}>
-      <View style={[styles.root, { paddingBottom: offset }]} onLayout={onLayout}>
+      <KeyboardAvoidingView behavior="height" style={styles.root}>
         <Pressable style={styles.backdrop} onPress={onClose} />
         <View
           style={[
@@ -257,7 +256,7 @@ export function TaskEditSheet({
             </Pressable>
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

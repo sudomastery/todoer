@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { Ionicons } from '@expo/vector-icons';
 import {
   buildExport,
@@ -52,7 +53,7 @@ import {
 } from '../../lib/sound';
 import { supabase } from '../../lib/supabase';
 import { useBottomInset } from '../../lib/insets';
-import { raiseSoftKeyboard, useKeyboardOffset } from '../../lib/keyboard';
+import { raiseSoftKeyboard } from '../../lib/keyboard';
 import { useAccentId, useTheme, setAccentId } from '../../lib/theme';
 import { ACCENT_THEMES } from '@todoer/shared';
 
@@ -309,7 +310,6 @@ function SoundSetting() {
 
 export default function BrowseScreen() {
   const t = useTheme();
-  const keyboard = useKeyboardOffset();
   const bottomInset = useBottomInset();
   const router = useRouter();
   const { data: projects } = useProjects();
@@ -552,21 +552,15 @@ export default function BrowseScreen() {
 
       <Modal
         visible={addingProject}
-        // The keyboard's own rise is the entrance (see raiseSoftKeyboard): a
-        // slide here would run at the same time and fight it. The sheet
-        // appears docked at the bottom with no keyboard offset yet, then rides
-        // up as the keyboard animates in, the same smooth motion a plain
-        // field gets.
-        animationType="none"
+        // Fade masks the sheet's initial inflate cost without fighting the
+        // keyboard-driven rise the way a slide would (see AddTaskSheet).
+        animationType="fade"
         transparent
         statusBarTranslucent
         onRequestClose={closeProjectDialog}
         onShow={() => raiseSoftKeyboard(projectInputRef.current)}
       >
-        <View
-          style={[styles.modalRoot, { paddingBottom: keyboard.offset }]}
-          onLayout={keyboard.onLayout}
-        >
+        <KeyboardAvoidingView behavior="height" style={styles.modalRoot}>
           <Pressable style={styles.modalBackdrop} onPress={closeProjectDialog} />
           <View
             style={[
@@ -637,7 +631,7 @@ export default function BrowseScreen() {
               </Pressable>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       <NamePrompt

@@ -1,31 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  Keyboard,
-  LayoutAnimation,
-  LayoutChangeEvent,
-  Platform,
-  TextInput,
-  UIManager,
-} from 'react-native';
-
-// LayoutAnimation is opt-in on Android; enable it once so the keyboard offset
-// below can animate the content up rather than snapping.
-if (
-  Platform.OS === 'android' &&
-  UIManager.setLayoutAnimationEnabledExperimental
-) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
-
-// Glide the layout to its new size over the keyboard's own show/hide duration
-// so a sheet or composer rises and falls smoothly with the keys instead of
-// jumping the instant the offset changes.
-function animateKeyboardShift() {
-  LayoutAnimation.configureNext({
-    duration: 220,
-    update: { type: LayoutAnimation.Types.easeInEaseOut },
-  });
-}
+import { Keyboard, LayoutChangeEvent, Platform, TextInput } from 'react-native';
 
 /**
  * Raise the soft keyboard for a text field when a sheet or dialog opens, so the
@@ -42,12 +16,11 @@ export function raiseSoftKeyboard(input: TextInput | null): void {
   setTimeout(() => input?.focus(), FOCUS_DELAY_MS);
 }
 
-// Focus almost immediately once the modal window exists. The sheets open with
-// animationType="none", so there is no slide to wait out: the keyboard's own
-// rise is the entrance, and it lifts the docked sheet up with it (the same
-// smooth, OS-driven motion an already-on-screen input gets on tap). A tiny
-// delay lets the just-shown window accept IME focus.
-const FOCUS_DELAY_MS = 40;
+// Long enough for the sheet's own initial mount/layout to fully settle before
+// the keyboard event fires a second layout pass; too short and the two land in
+// the same frame and both look like a hitch. Short enough to still feel
+// immediate under the sheet's fade-in.
+const FOCUS_DELAY_MS = 180;
 
 /**
  * Bottom padding that keeps a bottom-anchored view above the on-screen keyboard.
@@ -75,11 +48,9 @@ export function useKeyboardOffset(): {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
     const show = Keyboard.addListener(showEvent, (e) => {
-      animateKeyboardShift();
       setKeyboardHeight(e.endCoordinates.height);
     });
     const hide = Keyboard.addListener(hideEvent, () => {
-      animateKeyboardShift();
       setKeyboardHeight(0);
     });
     return () => {
