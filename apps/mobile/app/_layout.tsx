@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import type { Session } from '@supabase/supabase-js';
 import { Celebration } from '../components/Celebration';
 import { supabase } from '../lib/supabase';
@@ -48,6 +49,7 @@ export default function RootLayout() {
     // with initialWindowMetrics means the first frame is already correct
     // instead of jumping once the insets are measured.
     <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+    <KeyboardProvider>
     <QueryClientProvider client={queryClient}>
       <AuthGate>
         <StatusBar style="auto" />
@@ -75,6 +77,7 @@ export default function RootLayout() {
       </AuthGate>
       <Celebration />
     </QueryClientProvider>
+    </KeyboardProvider>
     </SafeAreaProvider>
   );
 }
