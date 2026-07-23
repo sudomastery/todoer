@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import {
   describeRecurrence,
   formatDue,
@@ -13,7 +14,7 @@ import { DateGrid } from './DateGrid';
 import { TimeRow } from './TimeRow';
 import { useCreateSubtasks, useProjects, useQuickAdd } from '../lib/hooks';
 import { useBottomInset, useSheetMaxHeight } from '../lib/insets';
-import { raiseSoftKeyboard, useKeyboardOffset } from '../lib/keyboard';
+import { raiseSoftKeyboard } from '../lib/keyboard';
 import { useTheme } from '../lib/theme';
 
 export function AddTaskSheet({
@@ -35,8 +36,7 @@ export function AddTaskSheet({
   const { data: projects } = useProjects();
   const [text, setText] = useState('');
   const inputRef = useRef<TextInput>(null);
-  const { offset, onLayout } = useKeyboardOffset();
-  const bottomInset = useBottomInset(offset);
+  const bottomInset = useBottomInset();
   const detailsMaxHeight = useSheetMaxHeight(0.45);
 
   // undefined means "whatever the typed text says"; an explicit choice wins.
@@ -122,18 +122,26 @@ export function AddTaskSheet({
   return (
     <Modal
       visible={visible}
-      // The keyboard's own rise is the entrance (see raiseSoftKeyboard): a
-      // slide here would run at the same time and fight it, which is what
-      // made opening this sheet look janky next to a plain field's smooth
-      // keyboard-only animation. The sheet appears docked at the bottom with
-      // no keyboard offset yet, then rides up as the keyboard animates in.
-      animationType="none"
+      // A slide competes positionally with the keyboard-driven rise (both
+      // move the sheet vertically via different mechanisms at once), and
+      // "none" left the sheet's initial view inflation fully unmasked, which
+      // showed up as a hitch right when it appeared. Fade is cheap (opacity
+      // only, native driver, no relayout) and masks that inflate cost without
+      // fighting the keyboard's vertical motion.
+      animationType="fade"
       transparent
       statusBarTranslucent
       onRequestClose={dismiss}
       onShow={() => raiseSoftKeyboard(inputRef.current)}
     >
-      <View style={[styles.root, { paddingBottom: offset }]} onLayout={onLayout}>
+      {/* KeyboardAvoidingView rather than hand-tracked padding: the Modal is a
+          separate native window that never gets the Activity's own
+          adjustResize (confirmed by testing with no offset at all - the sheet
+          stayed hidden behind the keyboard), so something has to reposition
+          content here. Meta's own component is tuned for this exact case and
+          replaced a hand-rolled LayoutAnimation-driven version that still
+          looked stepped rather than fluid. */}
+      <KeyboardAvoidingView behavior="height" style={styles.root}>
         <Pressable style={styles.backdrop} onPress={dismiss} />
         <View
           style={[
@@ -338,7 +346,7 @@ export function AddTaskSheet({
             </Pressable>
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

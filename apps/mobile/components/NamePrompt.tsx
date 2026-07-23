@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useBottomInset } from '../lib/insets';
-import { raiseSoftKeyboard, useKeyboardOffset } from '../lib/keyboard';
+import { raiseSoftKeyboard } from '../lib/keyboard';
 import { useTheme } from '../lib/theme';
 
 /**
@@ -30,7 +31,6 @@ export function NamePrompt({
   const t = useTheme();
   const [name, setName] = useState(initial);
   const bottomInset = useBottomInset();
-  const { offset, onLayout } = useKeyboardOffset();
   const inputRef = useRef<TextInput>(null);
 
   useEffect(() => {
@@ -46,17 +46,15 @@ export function NamePrompt({
   return (
     <Modal
       visible={visible}
-      // The keyboard's own rise is the entrance (see raiseSoftKeyboard): a
-      // slide here would run at the same time and fight it. The sheet appears
-      // docked at the bottom with no keyboard offset yet, then rides up as the
-      // keyboard animates in, the same smooth motion a plain field gets.
-      animationType="none"
+      // Fade masks the sheet's initial inflate cost without fighting the
+      // keyboard-driven rise the way a slide would (see AddTaskSheet).
+      animationType="fade"
       transparent
       statusBarTranslucent
       onRequestClose={onCancel}
       onShow={() => raiseSoftKeyboard(inputRef.current)}
     >
-      <View style={[styles.root, { paddingBottom: offset }]} onLayout={onLayout}>
+      <KeyboardAvoidingView behavior="height" style={styles.root}>
         <Pressable style={styles.backdrop} onPress={onCancel} />
         <View
           style={[
@@ -92,7 +90,7 @@ export function NamePrompt({
             </Pressable>
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
