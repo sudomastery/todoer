@@ -34,7 +34,7 @@ import {
   type UpdateTaskInput,
 } from '@todoer/shared';
 import { getCachedUserId, supabase } from './supabase';
-import { recordCompletion, undoCompletion } from './celebration';
+import { recordCompletion, reverseCompletion, undoCompletion } from './celebration';
 import { playCompletionSound } from './sound';
 import { push as pushOutbox } from './outbox';
 import { mergeServerWithPending, usePendingOutboxOps } from './sync';
@@ -196,6 +196,10 @@ export function useUncompleteTask() {
         prevCompleted = qc.getQueryData<TaskWithLabels[]>(['tasks-completed']);
         const task = prevCompleted?.find((t) => t.id === id);
         if (task) {
+          // Deliberately unchecking, not a failed mutation: correct whichever
+          // day this task's completion was actually counted against, so
+          // completing it again today doesn't count as a second completion.
+          if (task.completed_at) void reverseCompletion(task.completed_at.slice(0, 10));
           await qc.cancelQueries({ queryKey: ['tasks'] });
           prevActive = qc.getQueryData<TaskWithLabels[]>(['tasks']);
           qc.setQueryData<TaskWithLabels[]>(['tasks'], (prev) =>

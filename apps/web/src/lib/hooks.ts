@@ -45,7 +45,7 @@ import {
   type UpdateTaskInput,
 } from '@todoer/shared';
 import { createClient } from '@/lib/supabase/client';
-import { recordCompletion, undoCompletion } from '@/lib/celebration';
+import { recordCompletion, reverseCompletion, undoCompletion } from '@/lib/celebration';
 import { playCompletionSound } from '@/lib/sound';
 
 export function useSupabase() {
@@ -264,6 +264,15 @@ export function useUncompleteTask() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => uncompleteTask(db, id),
+    onMutate: (id: string) => {
+      // Deliberately unchecking, not a failed mutation: correct whichever day
+      // this task's completion was actually counted against, so completing
+      // it again today doesn't count as a second completion.
+      const completedAt = qc
+        .getQueryData<TaskWithLabels[]>(['tasks-completed'])
+        ?.find((t) => t.id === id)?.completed_at;
+      if (completedAt) reverseCompletion(completedAt.slice(0, 10));
+    },
     onSettled: () => invalidateTasks(qc),
   });
 }
