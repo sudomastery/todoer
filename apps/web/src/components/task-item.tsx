@@ -152,7 +152,7 @@ export function TaskItem({
           }
         />
 
-        <div className="min-w-0 flex-1 cursor-pointer" onClick={() => !completedView && setEditing(true)}>
+        <div className="min-w-0 flex-1 cursor-pointer" onClick={() => setEditing(true)}>
           <div
             className={clsx(
               'text-sm leading-snug',

@@ -79,7 +79,10 @@ export function TaskEditor({
   const [showSubtasks, setShowSubtasks] = useState(false);
   const subtaskRef = useRef<HTMLInputElement>(null);
   // A subtask cannot itself have children, in either mode.
-  const canNest = !parentId;
+  // A completed task can still be opened to view its details, but adding a
+  // child under it would immediately be an active subtask of a done parent -
+  // matches mobile, which hides its own "Add subtask" the same way.
+  const canNest = !parentId && !task?.is_completed;
   // Editing an existing task: subtasks are added straight to the database
   // (the parent already exists), via a nested composer, rather than staged
   // locally like the create-mode list above.
