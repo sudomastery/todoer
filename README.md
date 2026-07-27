@@ -10,11 +10,11 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/sudomastery/todoer/releases/download/v1.0.0/app-release.apk">
+  <a href="https://github.com/sudomastery/todoer/releases/latest/download/app-release.apk">
     <img src="https://img.shields.io/badge/Download-Android%20APK-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="Download Android APK" />
   </a>
-  <a href="https://github.com/sudomastery/todoer/releases/tag/v1.0.0">
-    <img src="https://img.shields.io/badge/Release%20notes-v1.0.0-333333?style=for-the-badge" alt="Release notes" />
+  <a href="https://github.com/sudomastery/todoer/releases/latest">
+    <img src="https://img.shields.io/badge/Release%20notes-latest-333333?style=for-the-badge" alt="Release notes" />
   </a>
 </p>
 
