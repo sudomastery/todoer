@@ -10,6 +10,7 @@ import {
   deleteLabel,
   deleteSection,
   ensureLabels,
+  ensureProjects,
   fetchActiveTasks,
   fetchComments,
   fetchCompletedSince,
@@ -526,7 +527,18 @@ export function useQuickAdd() {
         const match = projects.find(
           (p) => p.name.toLowerCase() === parsed.projectName!.toLowerCase(),
         );
-        if (match) projectId = match.id;
+        if (match) {
+          projectId = match.id;
+        } else if (online) {
+          // A #project token works like an @label one: an unrecognized name
+          // mints a new project. Needs the network, same as ensureLabels
+          // below - offline, it falls back to the default project instead.
+          try {
+            projectId = (await ensureProjects(supabase, [parsed.projectName]))[0].id;
+          } catch {
+            // keep the default project rather than fail the whole task
+          }
+        }
       }
 
       // ensureLabels can create a brand new label, which needs the network;
@@ -600,6 +612,7 @@ export function useQuickAdd() {
     onSettled: () => {
       qc.invalidateQueries({ queryKey: ['tasks'] });
       qc.invalidateQueries({ queryKey: ['labels'] });
+      qc.invalidateQueries({ queryKey: ['projects'] });
     },
   });
 }

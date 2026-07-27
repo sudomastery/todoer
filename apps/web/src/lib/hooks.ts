@@ -20,6 +20,7 @@ import {
   deleteSection,
   deleteTask,
   ensureLabels,
+  ensureProjects,
   fetchActiveTasks,
   fetchComments,
   fetchCompletedSince,
@@ -141,11 +142,13 @@ export function useCreateTask() {
     mutationFn: (input: NewTaskInput) => createTask(db, input),
     onSettled: () => {
       invalidateTasks(qc);
-      // Quick-add can mint new labels from @tokens via ensureLabels, which does
-      // not touch the query cache. Without this the labels list keeps serving
-      // its stale (empty) copy for the 30s staleTime, so a just-typed @label
-      // never shows up until a realtime ping or a hard refresh happens to land.
+      // Quick-add can mint new labels from @tokens via ensureLabels, and new
+      // projects from #tokens via ensureProjects, neither of which touch the
+      // query cache. Without this the labels/projects lists keep serving
+      // their stale copy for the 30s staleTime, so a just-typed @label or
+      // #project never shows up until a realtime ping or a hard refresh.
       qc.invalidateQueries({ queryKey: ['labels'] });
+      qc.invalidateQueries({ queryKey: ['projects'] });
     },
   });
 }
@@ -187,7 +190,10 @@ export function useQuickAdd() {
         const match = projects.find(
           (p) => p.name.toLowerCase() === parsed.projectName!.toLowerCase(),
         );
-        if (match) projectId = match.id;
+        // A #project token works like an @label one: an unrecognized name
+        // creates a new project rather than silently landing in the default
+        // project the user never asked for.
+        projectId = match ? match.id : (await ensureProjects(db, [parsed.projectName]))[0].id;
       }
 
       const labels = await ensureLabels(db, parsed.labelNames);
@@ -206,6 +212,7 @@ export function useQuickAdd() {
     onSettled: () => {
       invalidateTasks(qc);
       qc.invalidateQueries({ queryKey: ['labels'] });
+      qc.invalidateQueries({ queryKey: ['projects'] });
     },
   });
 }
