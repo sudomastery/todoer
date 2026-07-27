@@ -1,18 +1,16 @@
 import { useEffect } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { onlineManager, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import * as Crypto from 'expo-crypto';
 import {
   addComment,
-  completeTask,
   createLabel,
   createProject,
   createSection,
-  createTask,
-  createSubtasks,
   deleteComment,
   deleteLabel,
   deleteSection,
-  deleteTask,
   ensureLabels,
+  ensureProjects,
   fetchActiveTasks,
   fetchComments,
   fetchCompletedSince,
@@ -22,23 +20,24 @@ import {
   fetchProjects,
   fetchSections,
   parseQuickAdd,
-  setTaskLabels,
-  uncompleteTask,
   updateLabel,
   updateProject,
   updateSection,
   deleteProject,
   reorderTasks,
-  updateTask,
+  type Label,
+  type NewTaskInput,
   type Priority,
   type Project,
   type Task,
   type TaskWithLabels,
   type UpdateTaskInput,
 } from '@todoer/shared';
-import { supabase } from './supabase';
+import { getCachedUserId, supabase } from './supabase';
 import { recordCompletion, undoCompletion } from './celebration';
 import { playCompletionSound } from './sound';
+import { push as pushOutbox } from './outbox';
+import { mergeServerWithPending, usePendingOutboxOps } from './sync';
 
 export function useProfile() {
   return useQuery({ queryKey: ['profile'], queryFn: () => fetchProfile(supabase) });
@@ -57,7 +56,12 @@ export function useLabels() {
 }
 
 export function useActiveTasks() {
-  return useQuery({ queryKey: ['tasks'], queryFn: () => fetchActiveTasks(supabase) });
+  const pending = usePendingOutboxOps();
+  return useQuery({
+    queryKey: ['tasks'],
+    queryFn: () => fetchActiveTasks(supabase),
+    select: (rows) => mergeServerWithPending(rows, pending),
+  });
 }
 
 export function useCompletedTasks() {
@@ -127,13 +131,15 @@ export function useRealtimeSync() {
 export function useCompleteTask() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (task: Task) => completeTask(supabase, task),
+    // The network call happens later, in the outbox's drain loop, not here:
+    // this hook only needs to record the completion locally and queue it.
+    mutationFn: async () => {},
     // Fired here rather than onSuccess: completing a task removes its row
     // from the list optimistically below, which unmounts it before the
     // network call resolves, and a hook level onSuccess is not guaranteed to
     // run once the component that registered it is gone. Verified on the
     // emulator: milestones landed inconsistently until this moved.
-    onMutate: async (task) => {
+    onMutate: async (task: Task) => {
       void playCompletionSound();
       // Awaited so a failed completion can retract exactly the milestone it
       // showed, and so two completions fired close together are serialized
@@ -157,6 +163,13 @@ export function useCompleteTask() {
         // the completion itself still goes ahead; only the optimistic
         // list update is skipped
       }
+      pushOutbox({
+        kind: 'complete',
+        id: Crypto.randomUUID(),
+        taskId: task.id,
+        enqueuedAt: new Date().toISOString(),
+        task,
+      });
       return { prev, recorded };
     },
     onError: (_e, _t, ctx) => {
@@ -174,7 +187,40 @@ export function useCompleteTask() {
 export function useUncompleteTask() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => uncompleteTask(supabase, id),
+    mutationFn: async () => {},
+    onMutate: async (id: string) => {
+      let prevActive: TaskWithLabels[] | undefined;
+      let prevCompleted: TaskWithLabels[] | undefined;
+      try {
+        await qc.cancelQueries({ queryKey: ['tasks-completed'] });
+        prevCompleted = qc.getQueryData<TaskWithLabels[]>(['tasks-completed']);
+        const task = prevCompleted?.find((t) => t.id === id);
+        if (task) {
+          await qc.cancelQueries({ queryKey: ['tasks'] });
+          prevActive = qc.getQueryData<TaskWithLabels[]>(['tasks']);
+          qc.setQueryData<TaskWithLabels[]>(['tasks'], (prev) =>
+            prev ? [{ ...task, is_completed: false, completed_at: null }, ...prev] : prev,
+          );
+          qc.setQueryData(
+            ['tasks-completed'],
+            prevCompleted!.filter((t) => t.id !== id),
+          );
+        }
+      } catch {
+        // the uncomplete itself still goes ahead; only the optimistic move is skipped
+      }
+      pushOutbox({
+        kind: 'uncomplete',
+        id: Crypto.randomUUID(),
+        taskId: id,
+        enqueuedAt: new Date().toISOString(),
+      });
+      return { prevActive, prevCompleted };
+    },
+    onError: (_e, _id, ctx) => {
+      if (ctx?.prevActive) qc.setQueryData(['tasks'], ctx.prevActive);
+      if (ctx?.prevCompleted) qc.setQueryData(['tasks-completed'], ctx.prevCompleted);
+    },
     onSettled: () => {
       qc.invalidateQueries({ queryKey: ['tasks'] });
       qc.invalidateQueries({ queryKey: ['tasks-completed'] });
@@ -186,9 +232,56 @@ export function useUncompleteTask() {
 export function useUpdateTask() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, patch }: { id: string; patch: UpdateTaskInput }) =>
-      updateTask(supabase, id, patch),
-    onSettled: () => qc.invalidateQueries({ queryKey: ['tasks'] }),
+    mutationFn: async () => {},
+    onMutate: async ({
+      id,
+      patch,
+      labelIds,
+    }: {
+      id: string;
+      patch: UpdateTaskInput;
+      /** Also updates the task's labels as one atomic queued edit, matching
+       * how TaskEditSheet saves fields and labels together. */
+      labelIds?: string[];
+    }) => {
+      let prev: TaskWithLabels[] | undefined;
+      try {
+        await qc.cancelQueries({ queryKey: ['tasks'] });
+        prev = qc.getQueryData<TaskWithLabels[]>(['tasks']);
+        if (prev) {
+          qc.setQueryData<TaskWithLabels[]>(
+            ['tasks'],
+            prev.map((t) =>
+              t.id === id ? { ...t, ...patch, ...(labelIds ? { label_ids: labelIds } : {}) } : t,
+            ),
+          );
+        }
+      } catch {
+        // the edit itself still goes ahead; only the optimistic write is skipped
+      }
+      pushOutbox({
+        kind: 'edit',
+        id: Crypto.randomUUID(),
+        taskId: id,
+        enqueuedAt: new Date().toISOString(),
+        userId: getCachedUserId() ?? '',
+        patch,
+        labelIds,
+      });
+      return { prev };
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(['tasks'], ctx.prev);
+    },
+    // Not returned: invalidateQueries' promise only resolves once its refetch
+    // settles, and offline that refetch can hang for many seconds trying (and
+    // failing) to reach the network. mutateAsync awaits whatever onSettled
+    // returns, so returning it here would leave the calling sheet's `await
+    // updateTask.mutateAsync(...)` - and the UI it gates, like closing the
+    // sheet - stuck for that entire hang.
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ['tasks'] });
+    },
   });
 }
 
@@ -214,15 +307,41 @@ export function useReorderTasks() {
     onError: (_e, _v, ctx) => {
       if (ctx?.prev) qc.setQueryData(['tasks'], ctx.prev);
     },
-    onSettled: () => qc.invalidateQueries({ queryKey: ['tasks'] }),
+    // See useUpdateTask's onSettled for why this isn't returned.
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ['tasks'] });
+    },
   });
 }
 
 export function useDeleteTask() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => deleteTask(supabase, id),
-    onSettled: () => qc.invalidateQueries({ queryKey: ['tasks'] }),
+    mutationFn: async () => {},
+    onMutate: async (id: string) => {
+      let prev: TaskWithLabels[] | undefined;
+      try {
+        await qc.cancelQueries({ queryKey: ['tasks'] });
+        prev = qc.getQueryData<TaskWithLabels[]>(['tasks']);
+        if (prev) {
+          qc.setQueryData(
+            ['tasks'],
+            prev.filter((t) => t.id !== id && t.parent_id !== id),
+          );
+        }
+      } catch {
+        // the delete itself still goes ahead; only the optimistic removal is skipped
+      }
+      pushOutbox({ kind: 'delete', id: Crypto.randomUUID(), taskId: id, enqueuedAt: new Date().toISOString() });
+      return { prev };
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(['tasks'], ctx.prev);
+    },
+    // See useUpdateTask's onSettled for why this isn't returned.
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ['tasks'] });
+    },
   });
 }
 
@@ -310,22 +429,60 @@ export function useDeleteSection() {
   });
 }
 
-export function useSetTaskLabels() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ task, labelIds }: { task: Pick<Task, 'id' | 'user_id'>; labelIds: string[] }) =>
-      setTaskLabels(supabase, task, labelIds),
-    onSettled: () => qc.invalidateQueries({ queryKey: ['tasks'] }),
-  });
-}
-
 /** Adds a batch of children under a task that was just created. */
 export function useCreateSubtasks() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ parent, names }: { parent: Task; names: string[] }) =>
-      createSubtasks(supabase, parent, names),
-    onSettled: () => qc.invalidateQueries({ queryKey: ['tasks'] }),
+    mutationFn: async ({ parent, names }: { parent: Task; names: string[] }) => {
+      let cursor = Date.now();
+      const created: TaskWithLabels[] = [];
+      for (const name of names) {
+        const content = name.trim();
+        if (!content) continue;
+        const id = Crypto.randomUUID();
+        // Distinct timestamps, in submission order, so a restart's
+        // reconstructed queue preserves the order subtasks were typed in.
+        const nowIso = new Date(cursor++).toISOString();
+        const input: NewTaskInput = {
+          id,
+          content,
+          project_id: parent.project_id,
+          section_id: parent.section_id,
+          parent_id: parent.id,
+        };
+        const task: TaskWithLabels = {
+          id,
+          user_id: parent.user_id,
+          project_id: parent.project_id,
+          section_id: parent.section_id,
+          parent_id: parent.id,
+          content,
+          description: '',
+          priority: 4,
+          due_date: null,
+          due_time: null,
+          recurrence: null,
+          is_completed: false,
+          completed_at: null,
+          sort_order: 0,
+          created_at: nowIso,
+          updated_at: nowIso,
+          label_ids: [],
+        };
+        created.push(task);
+        pushOutbox({ kind: 'create', id: Crypto.randomUUID(), taskId: id, enqueuedAt: nowIso, input, task });
+      }
+      if (created.length > 0) {
+        qc.setQueryData<TaskWithLabels[]>(['tasks'], (prev) => (prev ? [...created, ...prev] : created));
+      }
+    },
+    // See useUpdateTask's onSettled for why this isn't returned. This one
+    // matters most: AddTaskSheet always awaits this mutation after quick-add,
+    // even with zero subtasks typed, so a hung invalidation here blocked the
+    // sheet from closing on every offline submission.
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ['tasks'] });
+    },
   });
 }
 
@@ -355,16 +512,53 @@ export function useQuickAdd() {
       const parsed = parseQuickAdd(input);
       if (!parsed.content) throw new Error('Task name is required');
 
+      // onlineManager mirrors NetInfo through a live listener (wired in
+      // app/_layout.tsx), so it's already current. A fresh NetInfo.fetch()
+      // here instead can return a stale "connected" reading for a moment
+      // right after the radio actually drops, which sent ensureLabels/
+      // fetchProjects below on a real, multi-second network attempt while
+      // offline - exactly what this whole online check exists to prevent.
+      const online = onlineManager.isOnline();
+
       let projectId = defaultProjectId;
       if (parsed.projectName) {
-        const projects = qc.getQueryData<Project[]>(['projects']) ?? (await fetchProjects(supabase));
+        const cachedProjects = qc.getQueryData<Project[]>(['projects']) ?? [];
+        const projects = cachedProjects.length > 0 || !online ? cachedProjects : await fetchProjects(supabase);
         const match = projects.find(
           (p) => p.name.toLowerCase() === parsed.projectName!.toLowerCase(),
         );
-        if (match) projectId = match.id;
+        if (match) {
+          projectId = match.id;
+        } else if (online) {
+          // A #project token works like an @label one: an unrecognized name
+          // mints a new project. Needs the network, same as ensureLabels
+          // below - offline, it falls back to the default project instead.
+          try {
+            projectId = (await ensureProjects(supabase, [parsed.projectName]))[0].id;
+          } catch {
+            // keep the default project rather than fail the whole task
+          }
+        }
       }
 
-      const labels = await ensureLabels(supabase, parsed.labelNames);
+      // ensureLabels can create a brand new label, which needs the network;
+      // offline, fall back to matching only labels already in cache so
+      // creating the task itself is never blocked on connectivity.
+      const cachedLabels = qc.getQueryData<Label[]>(['labels']) ?? [];
+      let labelIds: string[];
+      if (online) {
+        try {
+          labelIds = (await ensureLabels(supabase, parsed.labelNames)).map((l) => l.id);
+        } catch {
+          labelIds = cachedLabels
+            .filter((l) => parsed.labelNames.some((n) => n.toLowerCase() === l.name.toLowerCase()))
+            .map((l) => l.id);
+        }
+      } else {
+        labelIds = cachedLabels
+          .filter((l) => parsed.labelNames.some((n) => n.toLowerCase() === l.name.toLowerCase()))
+          .map((l) => l.id);
+      }
 
       const dueDate =
         overrides?.due_date !== undefined
@@ -372,23 +566,53 @@ export function useQuickAdd() {
           : (parsed.due_date ?? defaultDueDate ?? null);
       const dueTime =
         overrides?.due_time !== undefined ? overrides.due_time : parsed.due_time;
+      const priority = overrides?.priority ?? parsed.priority;
+      const recurrence =
+        overrides?.recurrence !== undefined ? overrides.recurrence : parsed.recurrence;
 
-      return createTask(supabase, {
+      const id = Crypto.randomUUID();
+      const nowIso = new Date().toISOString();
+      const taskInput: NewTaskInput = {
+        id,
         content: parsed.content,
         project_id: projectId,
         parent_id: parentId ?? null,
-        priority: overrides?.priority ?? parsed.priority,
+        priority,
         due_date: dueDate,
         // A time with no day would never fire.
         due_time: dueDate ? dueTime : null,
-        recurrence:
-          overrides?.recurrence !== undefined ? overrides.recurrence : parsed.recurrence,
-        label_ids: labels.map((l) => l.id),
-      });
+        recurrence,
+        label_ids: labelIds,
+      };
+      const optimistic: TaskWithLabels = {
+        id,
+        user_id: getCachedUserId() ?? '',
+        project_id: projectId,
+        section_id: null,
+        parent_id: parentId ?? null,
+        content: parsed.content,
+        description: '',
+        priority,
+        due_date: dueDate,
+        due_time: dueDate ? (dueTime ?? null) : null,
+        recurrence: recurrence ?? null,
+        is_completed: false,
+        completed_at: null,
+        sort_order: 0,
+        created_at: nowIso,
+        updated_at: nowIso,
+        label_ids: labelIds,
+      };
+
+      qc.setQueryData<TaskWithLabels[]>(['tasks'], (prev) => (prev ? [optimistic, ...prev] : [optimistic]));
+      pushOutbox({ kind: 'create', id: Crypto.randomUUID(), taskId: id, enqueuedAt: nowIso, input: taskInput, task: optimistic });
+
+      return optimistic;
     },
     onSettled: () => {
       qc.invalidateQueries({ queryKey: ['tasks'] });
       qc.invalidateQueries({ queryKey: ['labels'] });
+      qc.invalidateQueries({ queryKey: ['projects'] });
     },
   });
 }

@@ -1,7 +1,9 @@
 import { useEffect } from 'react';
 import { Tabs } from 'expo-router';
+import { Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Greeting } from '../../components/Greeting';
+import { SyncStatusIcon } from '../../components/SyncStatusIcon';
 import { useActiveTasks } from '../../lib/hooks';
 import { rescheduleAll } from '../../lib/notifications';
 import { useTheme } from '../../lib/theme';
@@ -22,7 +24,12 @@ export default function TabsLayout() {
         headerStyle: { backgroundColor: t.bg },
         headerTintColor: t.fg,
         headerShadowVisible: false,
-        headerTitleStyle: { fontWeight: '700', fontSize: 20 },
+        headerTitle: ({ children }) => (
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Text style={{ fontWeight: '700', fontSize: 20, color: t.fg }}>{children}</Text>
+            <SyncStatusIcon />
+          </View>
+        ),
         headerRight: () => <Greeting />,
         tabBarStyle: { backgroundColor: t.bgElevated, borderTopColor: t.border },
         tabBarActiveTintColor: t.brand,

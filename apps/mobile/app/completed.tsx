@@ -1,18 +1,32 @@
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { formatDue } from '@todoer/shared';
 import { useCompletedTasks, useProjects, useUncompleteTask } from '../lib/hooks';
+import { pullToRefresh } from '../lib/sync';
 import { useTheme } from '../lib/theme';
 
 export default function CompletedScreen() {
   const t = useTheme();
   const router = useRouter();
+  const qc = useQueryClient();
   const { data: completed, isLoading } = useCompletedTasks();
   const { data: projects } = useProjects();
   const uncompleteTask = useUncompleteTask();
+  const [refreshing, setRefreshing] = useState(false);
 
   const tasks = completed ?? [];
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    try {
+      await pullToRefresh(qc);
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: t.bg }}>
@@ -20,6 +34,9 @@ export default function CompletedScreen() {
         data={tasks}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={t.brand} colors={[t.brand]} />
+        }
         ListEmptyComponent={
           <Text style={{ color: t.fgFaint, fontSize: 13, paddingTop: 20 }}>
             {isLoading ? 'Loading…' : 'Nothing completed yet.'}

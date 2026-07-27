@@ -12,6 +12,7 @@ import type {
   UpdateTaskInput,
 } from './types';
 import { nextOccurrence } from './recurrence';
+import { COLOR_KEYS } from './colors';
 
 type Client = SupabaseClient;
 
@@ -61,6 +62,30 @@ export async function updateProject(
 export async function deleteProject(db: Client, id: string): Promise<void> {
   const { error } = await db.from('projects').delete().eq('id', id).eq('is_inbox', false);
   throwIf(error);
+}
+
+/**
+ * Find projects by name (case-insensitive), creating any that do not exist,
+ * mirroring ensureLabels: a `#project` token in quick add is meant to work
+ * like an `@label` one, so an unrecognized name becomes a new project rather
+ * than silently falling back to the current/default project.
+ */
+export async function ensureProjects(db: Client, names: string[]): Promise<Project[]> {
+  if (names.length === 0) return [];
+  const existing = await fetchProjects(db);
+  const out: Project[] = [];
+  for (const name of names) {
+    const found = existing.find((p) => p.name.toLowerCase() === name.toLowerCase());
+    if (found) {
+      out.push(found);
+      continue;
+    }
+    const color = COLOR_KEYS[Math.floor(Math.random() * COLOR_KEYS.length)];
+    const created = await createProject(db, { name, color });
+    existing.push(created);
+    out.push(created);
+  }
+  return out;
 }
 
 // ============================================================

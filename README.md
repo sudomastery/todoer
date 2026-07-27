@@ -1,21 +1,79 @@
-# Todoer
+<p align="center">
+  <img src="docs/logo.png" width="120" alt="Todoer icon" />
+</p>
 
-A full-featured, Todoist-style task manager. Web app on Vercel, Android app built with Expo, data and auth on Supabase. Everything runs on free tiers.
+<h1 align="center">Todoer</h1>
 
-## Features
+<p align="center">
+  A fast, no-nonsense task manager for your phone and browser.<br />
+  Type a task in plain English, and it figures out the date, priority, project, and labels for you.
+</p>
 
-- Tasks with descriptions, subtasks, priorities (P1-P4), due dates and times
-- Natural language quick add: `Pay rent tomorrow 9am #Bills @finance p1 every month`
-- Recurring tasks: every day, every weekday, every Monday, every 3 weeks, monthly, yearly
-- Projects with 20 colors, favorites, and sections
-- Labels with per-label views
-- Views: Inbox, Today (with overdue), Upcoming (14-day agenda), Completed
-- Search (Ctrl+K on web), keyboard shortcuts (Q to add a task, M to toggle sidebar)
-- Task comments
-- MCP server: plug your account into an AI assistant that can manage everything for you
-- Realtime sync between web and Android via Supabase Realtime
-- Dark mode on both platforms
-- Row Level Security: every table is scoped to the signed-in user
+<p align="center">
+  <a href="https://github.com/sudomastery/todoer/releases/download/v1.0.0/app-release.apk">
+    <img src="https://img.shields.io/badge/Download-Android%20APK-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="Download Android APK" />
+  </a>
+  <a href="https://github.com/sudomastery/todoer/releases/tag/v1.0.0">
+    <img src="https://img.shields.io/badge/Release%20notes-v1.0.0-333333?style=for-the-badge" alt="Release notes" />
+  </a>
+</p>
+
+<p align="center">
+  <sub>Install: tap the button above to download the APK, open it on your phone, and allow "install from this source" when Android asks (only needed the first time).</sub>
+</p>
+
+## What is this?
+
+Todoer is a Todoist-style to-do app: tasks, projects, labels, due dates, recurring reminders, the works. It runs as a web app in your browser and as a native Android app, both talking to the same account, so anything you add on your phone shows up on the web instantly and vice versa.
+
+The Android app also works with **no internet connection**. Add, edit, or check off a task on a plane or in a dead zone, and it applies instantly on your phone and quietly finishes syncing to your account the moment you're back online.
+
+## A tour, in pictures
+
+<table>
+  <tr>
+    <td align="center" width="33%">
+      <img src="docs/screenshots/quick-add.png" width="260" alt="Adding a task with natural language" /><br />
+      <sub><b>Type it like you'd say it.</b><br />Todoer reads the date, time, priority, and project straight out of the sentence.</sub>
+    </td>
+    <td align="center" width="33%">
+      <img src="docs/screenshots/upcoming.png" width="260" alt="The Upcoming agenda view" /><br />
+      <sub><b>See what's coming.</b><br />Everything overdue or due in the next two weeks, grouped by day.</sub>
+    </td>
+    <td align="center" width="33%">
+      <img src="docs/screenshots/task-editor.png" width="260" alt="The full task editor" /><br />
+      <sub><b>Fine-tune anything.</b><br />Due date, repeat rule, priority, project, and labels, all in one sheet.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="33%">
+      <img src="docs/screenshots/today.png" width="260" alt="The Today view" /><br />
+      <sub><b>Today, front and center.</b><br />Overdue items surface automatically so nothing slips through.</sub>
+    </td>
+    <td align="center" width="33%">
+      <img src="docs/screenshots/project-view.png" width="260" alt="A single project's task list" /><br />
+      <sub><b>Group work by project.</b><br />Give each project its own color and its own list.</sub>
+    </td>
+    <td align="center" width="33%">
+      <img src="docs/screenshots/browse.png" width="260" alt="The Browse menu" /><br />
+      <sub><b>Everything else, one tap away.</b><br />Search, productivity stats, a calendar view, and an AI assistant.</sub>
+    </td>
+  </tr>
+</table>
+
+## What it can do
+
+- **Type naturally to add a task.** `Pay rent tomorrow 9am #Bills @finance p1 every month` becomes a task due tomorrow at 9am, in the Bills project, tagged "finance", top priority, repeating monthly.
+- **Works offline.** The Android app keeps working with no signal: everything you do applies immediately and syncs up once you reconnect.
+- **Recurring tasks that just work.** Every day, every weekday, every Monday, every 3 weeks, monthly, yearly, whatever the reminder needs.
+- **Projects, labels, and subtasks** to organize things however you think about them, with 20 colors to tell projects apart at a glance.
+- **Today, Upcoming, and overdue handling** so you always know what needs attention first.
+- **Instant sync between phone and browser.** Add something on the bus, see it on your laptop before you've sat down.
+- **Search and keyboard shortcuts on the web app** (`Ctrl+K` to search, `Q` to add a task).
+- **Comments on tasks**, for the extra context that doesn't fit in a title.
+- **Talk to it through an AI assistant.** Connect Claude (or any MCP-capable assistant) to your account and ask it to manage your list for you.
+- **Dark mode** on both the app and the website.
+- **Your data is yours.** Every account's tasks are locked down at the database level, not just in the app's UI.
 
 ## Repository layout
 
@@ -27,7 +85,11 @@ packages/mcp      MCP server exposing the app's actions to AI assistants
 supabase/         SQL migrations (schema, triggers, RLS, realtime)
 ```
 
-## 1. Set up Supabase (free)
+## Running it yourself
+
+Todoer is built entirely on free tiers: Supabase for the database and auth, Vercel for the web app, Expo for the Android build.
+
+### 1. Set up Supabase (free)
 
 1. Create a project at [supabase.com](https://supabase.com) (free tier).
 2. Open the SQL Editor, paste the contents of `supabase/migrations/00000000000001_schema.sql`, and run it.
@@ -37,7 +99,7 @@ supabase/         SQL migrations (schema, triggers, RLS, realtime)
 
 New users automatically get a profile and an Inbox project via a database trigger.
 
-## 2. Run the web app locally
+### 2. Run the web app locally
 
 ```bash
 npm install
@@ -45,21 +107,21 @@ cp apps/web/.env.example apps/web/.env.local   # fill in your Supabase URL and a
 npm run dev                                     # http://localhost:3000
 ```
 
-## 3. Deploy the web app to Vercel (free)
+### 3. Deploy the web app to Vercel (free)
 
 1. Push this repository to GitHub.
 2. Import it on [vercel.com](https://vercel.com), and set the Root Directory to `apps/web`.
 3. Add the environment variables `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
 4. Deploy. Then update the Supabase Site URL and redirect URLs to your Vercel domain.
 
-## 4. Run the Android app
+### 4. Run the Android app
 
 ```bash
 cp apps/mobile/.env.example apps/mobile/.env    # fill in the same Supabase values
 npm run dev:mobile                              # scan the QR code with the Expo Go app
 ```
 
-## 5. Build an installable APK (free)
+### 5. Build an installable APK (free)
 
 Uses Expo's EAS Build free tier:
 
@@ -77,7 +139,7 @@ eas build --profile preview --platform android
 
 When the build finishes you get a download link for an APK you can install directly on any Android phone. For Play Store distribution, use `eas build --platform android` (production profile, builds an AAB) and `eas submit`.
 
-## 6. Connect an AI assistant (MCP)
+### 6. Connect an AI assistant (MCP)
 
 `packages/mcp` is a stdio MCP server that gives any MCP-capable AI assistant
 (Claude Code, Claude Desktop, and others) full control of one Todoer account:

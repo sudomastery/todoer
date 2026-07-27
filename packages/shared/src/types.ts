@@ -78,6 +78,10 @@ export interface TaskWithLabels extends Task {
 }
 
 export interface NewTaskInput {
+  /** Client-generated id, used by offline-first callers so an optimistic
+   * row and its eventual server row share one id. Omitted callers get a
+   * DB-assigned id as before. */
+  id?: string;
   content: string;
   description?: string;
   project_id: string;
