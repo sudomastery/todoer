@@ -1,4 +1,6 @@
-import { Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Pressable, RefreshControl, ScrollView, SectionList, StyleSheet, Text, View } from 'react-native';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   canReorder,
   sortTasksBy,
@@ -10,6 +12,7 @@ import {
 import { DraggableTaskList } from './DraggableTaskList';
 import { TaskRow } from './TaskRow';
 import { useReorderTasks } from '../lib/hooks';
+import { pullToRefresh } from '../lib/sync';
 import { useTheme } from '../lib/theme';
 
 export interface TaskSection {
@@ -42,6 +45,21 @@ export function TaskListView({
 }) {
   const t = useTheme();
   const reorder = useReorderTasks();
+  const qc = useQueryClient();
+  const [refreshing, setRefreshing] = useState(false);
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    try {
+      await pullToRefresh(qc);
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
+  const refreshControl = (
+    <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={t.brand} colors={[t.brand]} />
+  );
 
   const prepared = sections
     .map((s) => {
@@ -61,9 +79,9 @@ export function TaskListView({
 
   if (isEmpty) {
     return (
-      <View style={styles.empty}>
+      <ScrollView contentContainerStyle={styles.empty} refreshControl={refreshControl}>
         <Text style={{ color: t.fgFaint, fontSize: 14 }}>{emptyMessage}</Text>
-      </View>
+      </ScrollView>
     );
   }
 
@@ -90,6 +108,7 @@ export function TaskListView({
         labels={labels}
         showProject={showProject}
         onReorder={(updates) => reorder.mutate(updates)}
+        refreshControl={refreshControl}
       />
     );
   }
@@ -100,6 +119,7 @@ export function TaskListView({
       keyExtractor={(item) => item.task.id}
       stickySectionHeadersEnabled={false}
       contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 120 }}
+      refreshControl={refreshControl}
       renderSectionHeader={({ section }) =>
         section.title ? (
           <Pressable

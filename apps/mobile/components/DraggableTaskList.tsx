@@ -1,5 +1,5 @@
-import { useRef, useState } from 'react';
-import { Animated, PanResponder, ScrollView, StyleSheet, View } from 'react-native';
+import { useRef, useState, type ReactElement } from 'react';
+import { Animated, PanResponder, ScrollView, StyleSheet, View, type RefreshControlProps } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { reorderSortOrders, type Label, type Project, type TaskWithLabels } from '@todoer/shared';
 import { TaskRow } from './TaskRow';
@@ -71,6 +71,7 @@ export function DraggableTaskList({
   showProject = false,
   onReorder,
   contentPaddingBottom = 120,
+  refreshControl,
 }: {
   groups: Group[];
   projects?: Project[];
@@ -78,6 +79,7 @@ export function DraggableTaskList({
   showProject?: boolean;
   onReorder: (updates: { id: string; sort_order: number }[]) => void;
   contentPaddingBottom?: number;
+  refreshControl?: ReactElement<RefreshControlProps>;
 }) {
   const t = useTheme();
   const dragY = useRef(new Animated.Value(0)).current;
@@ -154,6 +156,7 @@ export function DraggableTaskList({
       // A drag in progress must not also scroll the list under the finger.
       scrollEnabled={dragIndex === null}
       contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: contentPaddingBottom }}
+      refreshControl={refreshControl}
     >
       {groups.map((group, index) => {
         const isDragging = dragIndex === index;
