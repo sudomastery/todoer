@@ -7,11 +7,13 @@ import {
   colorHex,
   describeRecurrence,
   formatDueDate,
+  isOverdue,
   PRIORITY_COLORS,
   recurrenceOptions,
   type Priority,
   type TaskWithLabels,
 } from '@todoer/shared';
+import { ConfirmSheet } from './ConfirmSheet';
 import { DateGrid } from './DateGrid';
 import { TimeRow } from './TimeRow';
 import { useLabels, useProjects, useUpdateTask } from '../lib/hooks';
@@ -63,9 +65,23 @@ export function TaskEditSheet({
     }
   }, [visible, task]);
 
-  async function save() {
+  const [pastDateConfirm, setPastDateConfirm] = useState(false);
+
+  function save() {
     const text = content.trim();
     if (!text) return;
+    // Only nags when the date is actually changing to a past value this
+    // session - an already-overdue task being saved for an unrelated edit
+    // shouldn't re-prompt every time.
+    if (due && due !== task.due_date && isOverdue(due)) {
+      setPastDateConfirm(true);
+      return;
+    }
+    void doSave();
+  }
+
+  async function doSave() {
+    const text = content.trim();
     await updateTask.mutateAsync({
       id: task.id,
       patch: {
@@ -100,6 +116,7 @@ export function TaskEditSheet({
   ];
 
   return (
+    <>
     <Modal visible={visible} animationType="slide" transparent statusBarTranslucent onRequestClose={onClose}>
       <KeyboardAvoidingView behavior="height" style={styles.root}>
         <Pressable style={styles.backdrop} onPress={onClose} />
@@ -257,6 +274,19 @@ export function TaskEditSheet({
         </View>
       </KeyboardAvoidingView>
     </Modal>
+    <ConfirmSheet
+      visible={pastDateConfirm}
+      title="This date is in the past"
+      message="Fix the due date, or continue if this task is meant to be logged in the past."
+      confirmLabel="Continue anyway"
+      icon="calendar-outline"
+      onConfirm={() => {
+        setPastDateConfirm(false);
+        void doSave();
+      }}
+      onCancel={() => setPastDateConfirm(false)}
+    />
+    </>
   );
 }
 

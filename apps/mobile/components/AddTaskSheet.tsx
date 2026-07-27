@@ -5,11 +5,13 @@ import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import {
   describeRecurrence,
   formatDue,
+  isOverdue,
   parseQuickAdd,
   PRIORITY_COLORS,
   recurrenceOptions,
   type Priority,
 } from '@todoer/shared';
+import { ConfirmSheet } from './ConfirmSheet';
 import { DateGrid } from './DateGrid';
 import { TimeRow } from './TimeRow';
 import { useCreateSubtasks, useProjects, useQuickAdd } from '../lib/hooks';
@@ -84,9 +86,19 @@ export function AddTaskSheet({
     setShowSubtasks(false);
   }
 
-  async function submit() {
+  const [pastDateConfirm, setPastDateConfirm] = useState(false);
+
+  function submit() {
     const projectId = defaultProjectId ?? inbox?.id;
     if (!parsed.content || !projectId || quickAdd.isPending) return;
+    if (effDue && isOverdue(effDue)) {
+      setPastDateConfirm(true);
+      return;
+    }
+    void doSubmit(projectId);
+  }
+
+  async function doSubmit(projectId: string) {
     const created = await quickAdd.mutateAsync({
       input: text,
       defaultProjectId: projectId,
@@ -120,6 +132,7 @@ export function AddTaskSheet({
   ];
 
   return (
+    <>
     <Modal
       visible={visible}
       // A slide competes positionally with the keyboard-driven rise (both
@@ -348,6 +361,20 @@ export function AddTaskSheet({
         </View>
       </KeyboardAvoidingView>
     </Modal>
+    <ConfirmSheet
+      visible={pastDateConfirm}
+      title="This date is in the past"
+      message="Fix the due date, or continue if this task is meant to be logged in the past."
+      confirmLabel="Continue anyway"
+      icon="calendar-outline"
+      onConfirm={() => {
+        setPastDateConfirm(false);
+        const projectId = defaultProjectId ?? inbox?.id;
+        if (projectId) void doSubmit(projectId);
+      }}
+      onCancel={() => setPastDateConfirm(false)}
+    />
+    </>
   );
 }
 
