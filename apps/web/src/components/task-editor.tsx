@@ -6,10 +6,13 @@ import { Hash, ListTree, X } from 'lucide-react';
 import {
   colorHex,
   ensureLabels,
+  ensureProjects,
+  isOverdue,
   parseQuickAdd,
   type Priority,
   type TaskWithLabels,
 } from '@todoer/shared';
+import { ConfirmDialog } from '@/components/confirm-dialog';
 import {
   useCreateSubtasks,
   useCreateTask,
@@ -75,7 +78,12 @@ export function TaskEditor({
   // no subtasks is not carrying an empty field around.
   const [showSubtasks, setShowSubtasks] = useState(false);
   const subtaskRef = useRef<HTMLInputElement>(null);
-  const canNest = !isEdit && !parentId;
+  // A subtask cannot itself have children, in either mode.
+  const canNest = !parentId;
+  // Editing an existing task: subtasks are added straight to the database
+  // (the parent already exists), via a nested composer, rather than staged
+  // locally like the create-mode list above.
+  const [addingSubtaskWhileEditing, setAddingSubtaskWhileEditing] = useState(false);
 
   function addSubtask() {
     const name = subtaskText.trim();
@@ -127,8 +135,22 @@ export function TaskEditor({
   const project = (projects ?? []).find((p) => p.id === effProjectId);
 
   const inputRef = useRef<HTMLInputElement>(null);
+  const [pastDateConfirm, setPastDateConfirm] = useState(false);
 
   async function submit() {
+    if (saving) return;
+    // Only nags when the date is actually changing to a past value this
+    // session - an already-overdue task being saved for an unrelated edit
+    // (priority, labels, ...) shouldn't re-prompt every time.
+    const dateChanged = isEdit ? effDue !== (task?.due_date ?? null) : true;
+    if (effDue && dateChanged && isOverdue(effDue)) {
+      setPastDateConfirm(true);
+      return;
+    }
+    await doSubmit();
+  }
+
+  async function doSubmit() {
     if (saving) return;
     setSaving(true);
     try {
@@ -156,11 +178,19 @@ export function TaskEditor({
       }
 
       if (!parsed?.content) return;
+      // A #project token that doesn't match anything (parsedProjectId is only
+      // ever set from the already-fetched list) works like an @label one and
+      // mints a new project, unless the user explicitly picked one from the
+      // project chip - that pick always wins over a typed token.
+      const projectId =
+        !projectOverride && parsed.projectName && !parsedProjectId
+          ? (await ensureProjects(db, [parsed.projectName]))[0].id
+          : effProjectId;
       const parsedLabels = await ensureLabels(db, parsed.labelNames);
       const created = await createTask.mutateAsync({
         content: parsed.content,
         description: description.trim(),
-        project_id: effProjectId,
+        project_id: projectId,
         section_id: sectionId ?? null,
         parent_id: parentId ?? null,
         priority: effPriority,
@@ -226,7 +256,17 @@ export function TaskEditor({
         className="mt-1 w-full bg-transparent text-xs outline-none placeholder:text-fg-faint"
       />
 
-      {canNest && (subtasks.length > 0 || showSubtasks) && (
+      {isEdit && canNest && addingSubtaskWhileEditing && (
+        <div className="mt-2">
+          <TaskEditor
+            defaultProjectId={task.project_id}
+            parentId={task.id}
+            onDone={() => setAddingSubtaskWhileEditing(false)}
+          />
+        </div>
+      )}
+
+      {!isEdit && canNest && (subtasks.length > 0 || showSubtasks) && (
         <div className="mt-2">
           {subtasks.map((name, i) => (
             <div key={`${name}-${i}`} className="flex items-center gap-2 py-0.5 pl-3 text-xs">
@@ -280,8 +320,12 @@ export function TaskEditor({
         <RepeatChip value={effRecurrence} dueDate={effDue} onChange={setRecurrenceOverride} />
         {canNest && (
           <Chip
-            active={subtasks.length > 0}
+            active={isEdit ? addingSubtaskWhileEditing : subtasks.length > 0}
             onClick={() => {
+              if (isEdit) {
+                setAddingSubtaskWhileEditing(true);
+                return;
+              }
               setShowSubtasks(true);
               // Opening the box and then making the user click into it would
               // be a pointless second step.
@@ -289,7 +333,7 @@ export function TaskEditor({
             }}
           >
             <ListTree className="h-3.5 w-3.5" />
-            {subtasks.length > 0
+            {!isEdit && subtasks.length > 0
               ? `${subtasks.length} subtask${subtasks.length === 1 ? '' : 's'}`
               : 'Subtasks'}
           </Chip>
@@ -330,6 +374,15 @@ export function TaskEditor({
       </div>
 
       {isEdit && <TaskComments taskId={task.id} />}
+
+      <ConfirmDialog
+        open={pastDateConfirm}
+        onOpenChange={setPastDateConfirm}
+        title="This date is in the past"
+        message="Fix the due date, or continue if this task is meant to be logged in the past."
+        confirmLabel="Continue anyway"
+        onConfirm={() => void doSubmit()}
+      />
     </div>
   );
 }

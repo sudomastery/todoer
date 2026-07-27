@@ -208,7 +208,16 @@ export function TaskItem({
           <div
             className={clsx(
               // Floated above the row so showing the actions never reflows the task text.
-              'absolute right-0 top-1.5 z-10 hidden items-center gap-0.5 rounded-md pl-3 group-hover:flex',
+              // `invisible`/`visible` rather than `hidden`/`flex`: the due-date
+              // button below is a Popover anchor, and Radix repositions its
+              // content continuously while open by re-measuring the anchor's
+              // rect. `display:none` collapses that rect to zero and sends the
+              // popover to its off-screen fallback position the moment the
+              // mouse leaves this row (which happens as soon as it moves onto
+              // the open calendar). `visibility:hidden` keeps the anchor's
+              // layout box (and its rect) intact while still invisible and
+              // non-interactive when this row isn't hovered.
+              'invisible absolute right-0 top-1.5 z-10 flex items-center gap-0.5 rounded-md pl-3 group-hover:visible',
               card ? 'bg-bg-card' : 'bg-bg',
             )}
           >
