@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { View } from 'react-native';
 import { format } from 'date-fns';
 import { isOverdue, isToday, todayISO } from '@todoer/shared';
-import { useActiveTasks, useLabels, useProjects, useRealtimeSync } from '../../lib/hooks';
+import { useActiveTasks, useLabels, useProjects } from '../../lib/hooks';
 import { TaskListView } from '../../components/TaskListView';
 import { AddTaskSheet } from '../../components/AddTaskSheet';
 import { Fab } from '../../components/Fab';
@@ -10,7 +10,6 @@ import { TaskListSkeleton } from '../../components/Skeleton';
 import { useTheme } from '../../lib/theme';
 
 export default function TodayScreen() {
-  useRealtimeSync();
   const t = useTheme();
   const { data: tasks, isLoading } = useActiveTasks();
   const { data: projects } = useProjects();

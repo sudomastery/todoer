@@ -14,7 +14,7 @@ import {
 } from '@todoer/shared';
 import { DateGrid } from './DateGrid';
 import { TimeRow } from './TimeRow';
-import { useLabels, useProjects, useSetTaskLabels, useUpdateTask } from '../lib/hooks';
+import { useLabels, useProjects, useUpdateTask } from '../lib/hooks';
 import { useBottomInset, useSheetMaxHeight } from '../lib/insets';
 import { useTheme } from '../lib/theme';
 
@@ -34,7 +34,6 @@ export function TaskEditSheet({
 }) {
   const t = useTheme();
   const updateTask = useUpdateTask();
-  const setTaskLabels = useSetTaskLabels();
   const { data: projects } = useProjects();
   const { data: labels } = useLabels();
 
@@ -79,8 +78,8 @@ export function TaskEditSheet({
         priority,
         project_id: projectId,
       },
+      labelIds,
     });
-    await setTaskLabels.mutateAsync({ task, labelIds });
     onClose();
   }
 

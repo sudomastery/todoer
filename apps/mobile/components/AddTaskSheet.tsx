@@ -86,7 +86,7 @@ export function AddTaskSheet({
 
   async function submit() {
     const projectId = defaultProjectId ?? inbox?.id;
-    if (!parsed.content || !projectId) return;
+    if (!parsed.content || !projectId || quickAdd.isPending) return;
     const created = await quickAdd.mutateAsync({
       input: text,
       defaultProjectId: projectId,
