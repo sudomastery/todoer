@@ -9,14 +9,16 @@ import {
 
 /**
  * Counts completions per local day and fires the registered handler when a
- * milestone lands. localStorage keeps the count across reloads; uncompleting
- * a task does not decrement, which errs on the side of celebrating.
+ * milestone lands. localStorage keeps the count across reloads.
  *
  * A show can be retracted if the completion that earned it turns out to have
  * failed on the server: recordCompletion hands the caller back what it
  * recorded, and undoCompletion takes that back to reverse the count and hide
- * the celebration. The counting rules themselves live in @todoer/shared so
- * this and the mobile version cannot drift apart.
+ * the celebration. Deliberately unchecking a task goes through
+ * reverseCompletion instead (see below), so a task completed, unchecked, and
+ * completed again in the same day only ever counts once. The counting rules
+ * themselves live in @todoer/shared so this and the mobile version cannot
+ * drift apart.
  */
 
 type Handler = (e: CelebrationEvent) => void;
@@ -86,5 +88,31 @@ export function undoCompletion(recorded: RecordedCompletion | null): void {
       // best effort, same as recordCompletion
     }
   }
+  if (milestone) emit({ retract: milestone });
+}
+
+/**
+ * Called when a task is deliberately unchecked (as opposed to undoCompletion,
+ * which only fires when the completion itself failed on the server). Without
+ * this, completing a task, unchecking it, and completing it again would count
+ * as two completions for a single task - exactly the "streak inflation" this
+ * exists to prevent. Decrements the day the task was actually completed on
+ * (from its completed_at, not "today"), so unchecking something completed
+ * yesterday corrects yesterday's count rather than today's.
+ */
+export function reverseCompletion(day: string): void {
+  const key = completionKey(day);
+  let count = 0;
+  try {
+    count = parseCount(localStorage.getItem(key));
+    if (count === 0) return;
+    localStorage.setItem(key, String(count - 1));
+  } catch {
+    return;
+  }
+  // Only "today" can have a celebration currently on screen to retract -
+  // unchecking something completed on an earlier day has nothing to hide.
+  if (day !== todayISO()) return;
+  const milestone = completionMilestone(count);
   if (milestone) emit({ retract: milestone });
 }
