@@ -18,7 +18,7 @@
     "test:web": "BASE_URL=${BASE_URL:-http://localhost:3000} SHOT_DIR=${SHOT_DIR:-/tmp} node e2e/test-web-ui.mjs",
     "test:sync": "BASE_URL=${BASE_URL:-http://localhost:3000} node e2e/test-realtime-ui.mjs",
     "test:e2e": "npm run test:logic && npm run test:backend && npm run test:mcp && npm run test:web && npm run test:sync",
-    "postinstall": "patch-package"
+    "postinstall": "patch-package || exit 0"
   },
   "devDependencies": {
     "patch-package": "^8.0.1",
