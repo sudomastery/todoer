@@ -1,0 +1,13 @@
+diff --git a/node_modules/react-native-keyboard-controller/android/src/main/java/com/reactnativekeyboardcontroller/listeners/FocusedInputObserver.kt b/node_modules/react-native-keyboard-controller/android/src/main/java/com/reactnativekeyboardcontroller/listeners/FocusedInputObserver.kt
+index 4de762d..44e1dac 100644
+--- a/node_modules/react-native-keyboard-controller/android/src/main/java/com/reactnativekeyboardcontroller/listeners/FocusedInputObserver.kt
++++ b/node_modules/react-native-keyboard-controller/android/src/main/java/com/reactnativekeyboardcontroller/listeners/FocusedInputObserver.kt
+@@ -43,7 +43,7 @@ class FocusedInputObserver(
+   private val context: ThemedReactContext?,
+ ) {
+   // constructor variables
+-  private val surfaceId = UIManagerHelper.getSurfaceId(view)
++  private val surfaceId = UIManagerHelper.getSurfaceId(eventPropagationView)
+ 
+   // state variables
+   private var lastFocusedInput: EditText? = null

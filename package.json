@@ -17,9 +17,11 @@
     "test:mcp": "SUPABASE_URL=${SUPABASE_URL:-http://127.0.0.1:54321} SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0} node e2e/test-mcp.mjs",
     "test:web": "BASE_URL=${BASE_URL:-http://localhost:3000} SHOT_DIR=${SHOT_DIR:-/tmp} node e2e/test-web-ui.mjs",
     "test:sync": "BASE_URL=${BASE_URL:-http://localhost:3000} node e2e/test-realtime-ui.mjs",
-    "test:e2e": "npm run test:logic && npm run test:backend && npm run test:mcp && npm run test:web && npm run test:sync"
+    "test:e2e": "npm run test:logic && npm run test:backend && npm run test:mcp && npm run test:web && npm run test:sync",
+    "postinstall": "patch-package"
   },
   "devDependencies": {
+    "patch-package": "^8.0.1",
     "playwright": "^1.49.0",
     "tsx": "^4.19.0"
   },
