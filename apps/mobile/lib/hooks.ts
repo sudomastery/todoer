@@ -496,12 +496,14 @@ export function useQuickAdd() {
   return useMutation({
     mutationFn: async ({
       input,
+      description,
       defaultProjectId,
       defaultDueDate,
       parentId,
       overrides,
     }: {
       input: string;
+      description?: string;
       defaultProjectId: string;
       defaultDueDate?: string | null;
       parentId?: string | null;
@@ -576,9 +578,11 @@ export function useQuickAdd() {
 
       const id = Crypto.randomUUID();
       const nowIso = new Date().toISOString();
+      const trimmedDescription = description?.trim() ?? '';
       const taskInput: NewTaskInput = {
         id,
         content: parsed.content,
+        description: trimmedDescription,
         project_id: projectId,
         parent_id: parentId ?? null,
         priority,
@@ -595,7 +599,7 @@ export function useQuickAdd() {
         section_id: null,
         parent_id: parentId ?? null,
         content: parsed.content,
-        description: '',
+        description: trimmedDescription,
         priority,
         due_date: dueDate,
         due_time: dueDate ? (dueTime ?? null) : null,

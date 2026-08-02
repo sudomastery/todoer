@@ -37,6 +37,7 @@ export function AddTaskSheet({
   const createSubtasks = useCreateSubtasks();
   const { data: projects } = useProjects();
   const [text, setText] = useState('');
+  const [description, setDescription] = useState('');
   const inputRef = useRef<TextInput>(null);
   const bottomInset = useBottomInset();
   const detailsMaxHeight = useSheetMaxHeight(0.45);
@@ -76,6 +77,7 @@ export function AddTaskSheet({
 
   function reset() {
     setText('');
+    setDescription('');
     setDueOverride(undefined);
     setTimeOverride(undefined);
     setRepeatOverride(undefined);
@@ -101,6 +103,7 @@ export function AddTaskSheet({
   async function doSubmit(projectId: string) {
     const created = await quickAdd.mutateAsync({
       input: text,
+      description,
       defaultProjectId: projectId,
       defaultDueDate,
       parentId,
@@ -171,6 +174,13 @@ export function AddTaskSheet({
             placeholderTextColor={t.fgFaint}
             style={[styles.input, { color: t.fg }]}
             returnKeyType="done"
+          />
+          <TextInput
+            value={description}
+            onChangeText={setDescription}
+            placeholder="Description"
+            placeholderTextColor={t.fgFaint}
+            style={[styles.description, { color: t.fgSecondary }]}
           />
 
           <View style={styles.chips}>
@@ -387,6 +397,7 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   input: { fontSize: 16, fontWeight: '500', paddingVertical: 4 },
+  description: { fontSize: 13, paddingVertical: 2, marginBottom: 4 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 },
   chip: {
     flexDirection: 'row',
