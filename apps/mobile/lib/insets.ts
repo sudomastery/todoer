@@ -1,4 +1,5 @@
-import { useWindowDimensions } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Keyboard, Platform, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 /**
@@ -9,15 +10,34 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
  * task. Three button navigation reports roughly 48dp and gesture navigation
  * around 16dp, but some devices report nothing at all, hence the floor.
  *
- * Kept when the keyboard is open too: the keyboard height Android reports to
- * React Native comes up short of the real overlap by about the navigation
- * inset, which left the send button half buried under the IME (verified on
- * the emulator). Padding by inset plus keyboard offset lands the control just
- * above the keys on every nav mode; the worst case is a few spare pixels.
+ * Dropped to a small fixed gap while the keyboard is open: that used to add
+ * to the keyboard offset to compensate for Android under-reporting it, back
+ * when the offset was hand-tracked. Now KeyboardAvoidingView (from
+ * react-native-keyboard-controller) already lands the sheet flush above the
+ * keys on its own, so stacking the nav-bar inset on top of that just left a
+ * dead gray gap between the sheet and the keyboard.
  */
 export function useBottomInset(): number {
   const insets = useSafeAreaInsets();
-  return Math.max(insets.bottom, 8);
+  const keyboardVisible = useKeyboardVisible();
+  return keyboardVisible ? 8 : Math.max(insets.bottom, 8);
+}
+
+function useKeyboardVisible(): boolean {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const show = Keyboard.addListener(showEvent, () => setVisible(true));
+    const hide = Keyboard.addListener(hideEvent, () => setVisible(false));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
+
+  return visible;
 }
 
 /**
