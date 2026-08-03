@@ -30,9 +30,35 @@ export function setSoundPref(pref: SoundPref): void {
   }
 }
 
+// Each Audio element is created once and reused. Building a fresh Audio()
+// per play meant the browser had to fetch and decode the .wav from scratch
+// before every single completion, which showed up as a noticeable delay
+// between the checkmark and the sound. Preloading here means that work
+// happens once, up front, instead of on the critical path of every toggle.
+const audioCache = new Map<CompletionSound, HTMLAudioElement>();
+
+function getAudio(name: CompletionSound): HTMLAudioElement {
+  let audio = audioCache.get(name);
+  if (!audio) {
+    audio = new Audio(`/sounds/${name}.wav`);
+    audio.preload = 'auto';
+    audioCache.set(name, audio);
+  }
+  return audio;
+}
+
+if (typeof window !== 'undefined') {
+  for (const name of COMPLETION_SOUNDS) getAudio(name);
+}
+
 export function previewSound(name: CompletionSound): void {
-  const audio = new Audio(`/sounds/${name}.wav`);
+  const audio = getAudio(name);
   audio.volume = 0.6;
+  try {
+    audio.currentTime = 0;
+  } catch {
+    // not loaded yet; play() below will still start from the beginning
+  }
   void audio.play().catch(() => {
     // autoplay blocked or file missing; sound is best-effort
   });
