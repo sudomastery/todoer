@@ -2,7 +2,7 @@
   "expo": {
     "name": "Todoer",
     "slug": "todoer",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "scheme": "todoer",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
