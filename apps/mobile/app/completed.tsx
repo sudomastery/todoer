@@ -35,7 +35,13 @@ export default function CompletedScreen() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={t.brand} colors={[t.brand]} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={t.brand}
+            colors={[t.brand]}
+            progressBackgroundColor={t.bgElevated}
+          />
         }
         ListEmptyComponent={
           <Text style={{ color: t.fgFaint, fontSize: 13, paddingTop: 20 }}>

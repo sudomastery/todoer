@@ -58,7 +58,13 @@ export function TaskListView({
   }
 
   const refreshControl = (
-    <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={t.brand} colors={[t.brand]} />
+    <RefreshControl
+      refreshing={refreshing}
+      onRefresh={handleRefresh}
+      tintColor={t.brand}
+      colors={[t.brand]}
+      progressBackgroundColor={t.bgElevated}
+    />
   );
 
   const prepared = sections
