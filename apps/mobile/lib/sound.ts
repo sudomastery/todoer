@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createAudioPlayer } from 'expo-audio';
+import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 
 // Task completion sounds. The audio files live in assets/sounds/<name>.wav;
 // replace those files (same names) to change the sounds.
@@ -17,6 +17,23 @@ const FILES: Record<CompletionSound, number> = {
   chime: require('../assets/sounds/chime.wav'),
   tada: require('../assets/sounds/tada.wav'),
 };
+
+// Players are created once and reused. Building a fresh player per play meant
+// expo-audio had to load and prepare the asset from scratch before every
+// single completion, which showed up as a delay between the checkmark and
+// the sound. Creating them up front moves that work off the critical path.
+const players: Partial<Record<CompletionSound, AudioPlayer>> = {};
+
+function getPlayer(name: CompletionSound): AudioPlayer {
+  let player = players[name];
+  if (!player) {
+    player = createAudioPlayer(FILES[name]);
+    players[name] = player;
+  }
+  return player;
+}
+
+for (const name of COMPLETION_SOUNDS) getPlayer(name);
 
 let cached: SoundPref | null = null;
 
@@ -46,9 +63,9 @@ export async function setSoundPref(pref: SoundPref): Promise<void> {
 
 export function previewSound(name: CompletionSound): void {
   try {
-    const player = createAudioPlayer(FILES[name]);
+    const player = getPlayer(name);
+    void player.seekTo(0);
     player.play();
-    setTimeout(() => player.release(), 2000);
   } catch {
     // sound is best-effort
   }
