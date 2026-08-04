@@ -8,6 +8,7 @@ import {
 } from '@tanstack/react-query';
 import {
   addComment,
+  adminAuditLogSince,
   adminBanUser,
   adminDeleteUser,
   adminListUsers,
@@ -513,7 +514,10 @@ export function useAdminBanUser() {
   return useMutation({
     mutationFn: ({ userId, days }: { userId: string; days: number }) =>
       adminBanUser(db, userId, days),
-    onSettled: () => qc.invalidateQueries({ queryKey: ['admin-users'] }),
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ['admin-users'] });
+      qc.invalidateQueries({ queryKey: ['admin-audit-log'] });
+    },
   });
 }
 
@@ -522,7 +526,20 @@ export function useAdminDeleteUser() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (userId: string) => adminDeleteUser(db, userId),
-    onSettled: () => qc.invalidateQueries({ queryKey: ['admin-users'] }),
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ['admin-users'] });
+      qc.invalidateQueries({ queryKey: ['admin-audit-log'] });
+    },
+  });
+}
+
+export function useAdminAuditLog(sinceISO: string) {
+  const db = useSupabase();
+  const { data: admin } = useIsAdmin();
+  return useQuery({
+    queryKey: ['admin-audit-log', sinceISO],
+    queryFn: () => adminAuditLogSince(db, sinceISO),
+    enabled: admin === true,
   });
 }
 

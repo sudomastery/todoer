@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type {
+  AdminAuditLogEntry,
   AdminUserRow,
   Label,
   NewTaskInput,
@@ -469,4 +470,15 @@ export async function adminBanUser(db: Client, userId: string, days: number): Pr
 export async function adminDeleteUser(db: Client, userId: string): Promise<void> {
   const { error } = await db.rpc('admin_delete_user', { p_user_id: userId });
   throwIf(error);
+}
+
+/** Ban/unban/delete history, for the admin dashboard's gained/lost stats. RLS restricts reads to admins. */
+export async function adminAuditLogSince(db: Client, sinceISO: string): Promise<AdminAuditLogEntry[]> {
+  const { data, error } = await db
+    .from('admin_audit_log')
+    .select('*')
+    .gte('created_at', sinceISO)
+    .order('created_at', { ascending: false });
+  throwIf(error);
+  return (data ?? []) as AdminAuditLogEntry[];
 }

@@ -1,12 +1,17 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { format, formatDistanceToNow } from 'date-fns';
-import { Ban, ShieldCheck, Trash2 } from 'lucide-react';
-import clsx from 'clsx';
+import { format, formatDistanceToNow, subDays } from 'date-fns';
+import { MoreHorizontal, ShieldCheck, Trash2 } from 'lucide-react';
 import { friendlyError, type AdminUserRow } from '@todoer/shared';
-import { useAdminBanUser, useAdminDeleteUser, useAdminUsers, useIsAdmin } from '@/lib/hooks';
+import {
+  useAdminAuditLog,
+  useAdminBanUser,
+  useAdminDeleteUser,
+  useAdminUsers,
+  useIsAdmin,
+} from '@/lib/hooks';
 import { useUser } from '@/lib/use-user';
 import { RowSkeleton } from '@/components/loading';
 import { ConfirmDialog } from '@/components/confirm-dialog';
@@ -14,18 +19,30 @@ import {
   Dropdown,
   DropdownContent,
   DropdownItem,
+  DropdownSeparator,
   DropdownTrigger,
 } from '@/components/ui';
 
 const BAN_OPTIONS: { label: string; days: number }[] = [
-  { label: '1 day', days: 1 },
-  { label: '7 days', days: 7 },
-  { label: '30 days', days: 30 },
-  { label: 'Permanently', days: 36500 },
+  { label: 'Ban for 1 day', days: 1 },
+  { label: 'Ban for 7 days', days: 7 },
+  { label: 'Ban for 30 days', days: 30 },
+  { label: 'Ban permanently', days: 36500 },
 ];
+
+const STATS_WINDOW_DAYS = 30;
 
 function isBanned(row: AdminUserRow): boolean {
   return !!row.banned_until && new Date(row.banned_until) > new Date();
+}
+
+function StatTile({ value, label }: { value: number | string; label: string }) {
+  return (
+    <div className="rounded-lg border border-border-default p-4">
+      <div className="text-2xl font-bold">{value}</div>
+      <div className="mt-0.5 text-xs text-fg-secondary">{label}</div>
+    </div>
+  );
 }
 
 function UserRow({ row, selfEmail }: { row: AdminUserRow; selfEmail: string }) {
@@ -88,49 +105,33 @@ function UserRow({ row, selfEmail }: { row: AdminUserRow; selfEmail: string }) {
           </div>
         </div>
 
-        <div className="flex shrink-0 items-center gap-1">
-          {banned ? (
+        <Dropdown>
+          <DropdownTrigger asChild>
             <button
               type="button"
-              disabled={locked || banUser.isPending}
-              onClick={() => ban(0)}
-              className="rounded-md border border-border-strong px-2.5 py-1.5 text-xs font-medium hover:bg-bg-hover disabled:opacity-40"
+              aria-label="User options"
+              disabled={locked}
+              className="shrink-0 rounded-md p-1.5 text-fg-faint hover:bg-bg-hover hover:text-fg disabled:opacity-30"
             >
-              Unban
+              <MoreHorizontal className="h-4 w-4" />
             </button>
-          ) : (
-            <Dropdown>
-              <DropdownTrigger asChild>
-                <button
-                  type="button"
-                  disabled={locked || banUser.isPending}
-                  className="flex items-center gap-1.5 rounded-md border border-border-strong px-2.5 py-1.5 text-xs font-medium hover:bg-bg-hover disabled:opacity-40"
-                >
-                  <Ban className="h-3.5 w-3.5" /> Ban
-                </button>
-              </DropdownTrigger>
-              <DropdownContent align="end">
-                {BAN_OPTIONS.map((opt) => (
-                  <DropdownItem key={opt.days} onSelect={() => ban(opt.days)}>
-                    {opt.label}
-                  </DropdownItem>
-                ))}
-              </DropdownContent>
-            </Dropdown>
-          )}
-
-          <button
-            type="button"
-            disabled={locked || deleteUser.isPending}
-            onClick={() => setConfirmDelete(true)}
-            className={clsx(
-              'rounded-md border px-2.5 py-1.5 text-xs font-medium disabled:opacity-40',
-              'border-border-strong text-p1 hover:bg-p1/10',
+          </DropdownTrigger>
+          <DropdownContent align="end">
+            {banned ? (
+              <DropdownItem onSelect={() => ban(0)}>Unban</DropdownItem>
+            ) : (
+              BAN_OPTIONS.map((opt) => (
+                <DropdownItem key={opt.days} onSelect={() => ban(opt.days)}>
+                  {opt.label}
+                </DropdownItem>
+              ))
             )}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
-        </div>
+            <DropdownSeparator />
+            <DropdownItem danger onSelect={() => setConfirmDelete(true)}>
+              <Trash2 className="h-4 w-4" /> Delete account
+            </DropdownItem>
+          </DropdownContent>
+        </Dropdown>
       </div>
 
       {error && <p className="mt-2 text-xs text-p1">{error}</p>}
@@ -153,9 +154,21 @@ export default function AdminPage() {
   const { data: admin, isLoading: adminLoading } = useIsAdmin();
   const { data: users, isLoading: usersLoading } = useAdminUsers();
 
+  const sinceISO = useMemo(() => subDays(new Date(), STATS_WINDOW_DAYS).toISOString(), []);
+  const { data: auditLog } = useAdminAuditLog(sinceISO);
+
   useEffect(() => {
     if (!adminLoading && admin === false) router.replace('/app/today');
   }, [adminLoading, admin, router]);
+
+  const stats = useMemo(() => {
+    const since = subDays(new Date(), STATS_WINDOW_DAYS);
+    const gained = (users ?? []).filter((u) => new Date(u.created_at) >= since).length;
+    const lost = new Set(
+      (auditLog ?? []).filter((e) => e.action === 'delete').map((e) => e.target_user_id),
+    ).size;
+    return { total: users?.length ?? 0, gained, lost };
+  }, [users, auditLog]);
 
   if (adminLoading || admin !== true) {
     return <RowSkeleton rows={5} />;
@@ -167,6 +180,12 @@ export default function AdminPage() {
       <p className="mb-5 text-sm text-fg-secondary">
         {users ? `${users.length} account${users.length === 1 ? '' : 's'}` : 'Loading accounts...'}
       </p>
+
+      <div className="mb-6 grid grid-cols-3 gap-3">
+        <StatTile value={stats.total} label="Total users" />
+        <StatTile value={`+${stats.gained}`} label={`Gained (${STATS_WINDOW_DAYS}d)`} />
+        <StatTile value={stats.lost} label={`Lost (${STATS_WINDOW_DAYS}d)`} />
+      </div>
 
       {usersLoading ? (
         <RowSkeleton rows={5} />
