@@ -165,7 +165,9 @@ export default function AdminPage() {
     const since = subDays(new Date(), STATS_WINDOW_DAYS);
     const gained = (users ?? []).filter((u) => new Date(u.created_at) >= since).length;
     const lost = new Set(
-      (auditLog ?? []).filter((e) => e.action === 'delete').map((e) => e.target_user_id),
+      (auditLog ?? [])
+        .filter((e) => e.action === 'delete' || e.action === 'self_delete')
+        .map((e) => e.target_user_id),
     ).size;
     return { total: users?.length ?? 0, gained, lost };
   }, [users, auditLog]);
