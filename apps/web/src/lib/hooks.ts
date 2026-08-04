@@ -8,6 +8,9 @@ import {
 } from '@tanstack/react-query';
 import {
   addComment,
+  adminBanUser,
+  adminDeleteUser,
+  adminListUsers,
   completeTask,
   createLabel,
   createProject,
@@ -28,6 +31,7 @@ import {
   fetchLabels,
   fetchProjects,
   fetchSections,
+  isAdmin,
   parseQuickAdd,
   setTaskLabels,
   uncompleteTask,
@@ -481,6 +485,44 @@ export function useDeleteLabel() {
       qc.invalidateQueries({ queryKey: ['labels'] });
       qc.invalidateQueries({ queryKey: ['tasks'] });
     },
+  });
+}
+
+// ============================================================
+// Admin
+// ============================================================
+
+export function useIsAdmin() {
+  const db = useSupabase();
+  return useQuery({ queryKey: ['is-admin'], queryFn: () => isAdmin(db), staleTime: 5 * 60_000 });
+}
+
+export function useAdminUsers() {
+  const db = useSupabase();
+  const { data: admin } = useIsAdmin();
+  return useQuery({
+    queryKey: ['admin-users'],
+    queryFn: () => adminListUsers(db),
+    enabled: admin === true,
+  });
+}
+
+export function useAdminBanUser() {
+  const db = useSupabase();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userId, days }: { userId: string; days: number }) =>
+      adminBanUser(db, userId, days),
+    onSettled: () => qc.invalidateQueries({ queryKey: ['admin-users'] }),
+  });
+}
+
+export function useAdminDeleteUser() {
+  const db = useSupabase();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (userId: string) => adminDeleteUser(db, userId),
+    onSettled: () => qc.invalidateQueries({ queryKey: ['admin-users'] }),
   });
 }
 

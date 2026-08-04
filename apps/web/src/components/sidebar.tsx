@@ -26,6 +26,7 @@ import {
   Pencil,
   Plus,
   Search,
+  ShieldCheck,
   Star,
   StarOff,
   Sun,
@@ -36,6 +37,7 @@ import {
 import { buildExport, colorHex, isOverdue, isToday, todayISO, type Project } from '@todoer/shared';
 import {
   useActiveTasks,
+  useIsAdmin,
   useDeleteProject,
   useProjects,
   useUpdateProject,
@@ -189,6 +191,7 @@ export function Sidebar({
   const { resolvedTheme, setTheme } = useTheme();
   const { data: projects } = useProjects();
   const { data: tasks } = useActiveTasks();
+  const { data: isAdmin } = useIsAdmin();
   const [addingProject, setAddingProject] = useState(false);
   const [projectsExpanded, setProjectsExpanded] = useState(true);
   const [soundSettingsOpen, setSoundSettingsOpen] = useState(false);
@@ -360,6 +363,14 @@ export function Sidebar({
           label="Productivity"
           active={pathname === '/app/stats'}
         />
+        {isAdmin && (
+          <NavLink
+            href="/app/admin"
+            icon={<ShieldCheck className="h-4 w-4 text-fg-secondary" />}
+            label="Admin"
+            active={pathname === '/app/admin'}
+          />
+        )}
       </nav>
 
       {favorites.length > 0 && (

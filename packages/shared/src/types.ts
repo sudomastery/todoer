@@ -5,7 +5,19 @@ export interface Profile {
   email: string | null;
   full_name: string | null;
   username: string | null;
+  role: 'user' | 'admin';
   created_at: string;
+}
+
+export interface AdminUserRow {
+  id: string;
+  email: string | null;
+  username: string | null;
+  full_name: string | null;
+  role: 'user' | 'admin';
+  created_at: string;
+  last_sign_in_at: string | null;
+  banned_until: string | null;
 }
 
 export interface Project {

@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type {
+  AdminUserRow,
   Label,
   NewTaskInput,
   Priority,
@@ -438,5 +439,34 @@ export async function buildExport(db: Client): Promise<TodoerExport> {
 /** Permanently deletes the signed-in user's account and all their data. */
 export async function deleteAccount(db: Client): Promise<void> {
   const { error } = await db.rpc('delete_account');
+  throwIf(error);
+}
+
+// ============================================================
+// Admin
+// ============================================================
+
+/** Whether the signed-in user is an admin. Every admin RPC re-checks this itself. */
+export async function isAdmin(db: Client): Promise<boolean> {
+  const { data, error } = await db.rpc('is_admin');
+  throwIf(error);
+  return Boolean(data);
+}
+
+export async function adminListUsers(db: Client): Promise<AdminUserRow[]> {
+  const { data, error } = await db.rpc('admin_list_users');
+  throwIf(error);
+  return (data ?? []) as AdminUserRow[];
+}
+
+/** Bans a user for `days` days, or unbans immediately when `days` is 0. */
+export async function adminBanUser(db: Client, userId: string, days: number): Promise<void> {
+  const { error } = await db.rpc('admin_ban_user', { p_user_id: userId, p_days: days });
+  throwIf(error);
+}
+
+/** Permanently deletes another user's account. Cannot target yourself or another admin. */
+export async function adminDeleteUser(db: Client, userId: string): Promise<void> {
+  const { error } = await db.rpc('admin_delete_user', { p_user_id: userId });
   throwIf(error);
 }
