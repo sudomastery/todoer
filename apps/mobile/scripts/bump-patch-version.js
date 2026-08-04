@@ -27,28 +27,25 @@ const pkgJson = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf8'));
 pkgJson.version = newVersion;
 
 // Resolve the gradle update (if any) in memory first, and bail out before
-// writing anything if the expected fields aren't found, so a format change
-// can't silently leave build.gradle out of sync while app.json/package.json
-// still get bumped.
+// writing anything unless there's exactly one versionCode/versionName. This
+// script only understands a single-flavor build.gradle: blindly bumping
+// every match would also clobber flavor-specific version overrides (or a
+// stray commented-out line), so an unexpected count means stop and let a
+// human update it rather than guessing.
 const gradlePath = path.join(root, 'android', 'app', 'build.gradle');
 let gradle = null;
 if (fs.existsSync(gradlePath)) {
   gradle = fs.readFileSync(gradlePath, 'utf8');
-  let versionCodeMatches = 0;
-  gradle = gradle.replace(/versionCode\s+(\d+)/g, (_m, code) => {
-    versionCodeMatches++;
-    return `versionCode ${Number(code) + 1}`;
-  });
-  let versionNameMatches = 0;
-  gradle = gradle.replace(/versionName\s+"[^"]*"/g, () => {
-    versionNameMatches++;
-    return `versionName "${newVersion}"`;
-  });
-  if (versionCodeMatches === 0 || versionNameMatches === 0) {
+  const versionCodeCount = (gradle.match(/versionCode\s+\d+/g) || []).length;
+  const versionNameCount = (gradle.match(/versionName\s+"[^"]*"/g) || []).length;
+  if (versionCodeCount !== 1 || versionNameCount !== 1) {
     throw new Error(
-      `${gradlePath}: expected versionCode/versionName not found (found ${versionCodeMatches} versionCode, ${versionNameMatches} versionName); aborting before writing any files`
+      `${gradlePath}: expected exactly one versionCode and one versionName (found ${versionCodeCount} versionCode, ${versionNameCount} versionName); this script only supports a single-flavor build.gradle, update it manually`
     );
   }
+  gradle = gradle
+    .replace(/versionCode\s+(\d+)/, (_m, code) => `versionCode ${Number(code) + 1}`)
+    .replace(/versionName\s+"[^"]*"/, `versionName "${newVersion}"`);
 }
 
 fs.writeFileSync(appJsonPath, JSON.stringify(appJson, null, 2) + '\n');
