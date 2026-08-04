@@ -21,18 +21,39 @@ const appJson = JSON.parse(fs.readFileSync(appJsonPath, 'utf8'));
 const oldVersion = appJson.expo.version;
 const newVersion = bumpPatch(oldVersion);
 appJson.expo.version = newVersion;
-fs.writeFileSync(appJsonPath, JSON.stringify(appJson, null, 2) + '\n');
 
 const pkgJsonPath = path.join(root, 'package.json');
 const pkgJson = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf8'));
 pkgJson.version = newVersion;
-fs.writeFileSync(pkgJsonPath, JSON.stringify(pkgJson, null, 2) + '\n');
 
+// Resolve the gradle update (if any) in memory first, and bail out before
+// writing anything if the expected fields aren't found, so a format change
+// can't silently leave build.gradle out of sync while app.json/package.json
+// still get bumped.
 const gradlePath = path.join(root, 'android', 'app', 'build.gradle');
+let gradle = null;
 if (fs.existsSync(gradlePath)) {
-  let gradle = fs.readFileSync(gradlePath, 'utf8');
-  gradle = gradle.replace(/versionCode\s+(\d+)/, (_m, code) => `versionCode ${Number(code) + 1}`);
-  gradle = gradle.replace(/versionName\s+"[^"]*"/, `versionName "${newVersion}"`);
+  gradle = fs.readFileSync(gradlePath, 'utf8');
+  let versionCodeMatches = 0;
+  gradle = gradle.replace(/versionCode\s+(\d+)/g, (_m, code) => {
+    versionCodeMatches++;
+    return `versionCode ${Number(code) + 1}`;
+  });
+  let versionNameMatches = 0;
+  gradle = gradle.replace(/versionName\s+"[^"]*"/g, () => {
+    versionNameMatches++;
+    return `versionName "${newVersion}"`;
+  });
+  if (versionCodeMatches === 0 || versionNameMatches === 0) {
+    throw new Error(
+      `${gradlePath}: expected versionCode/versionName not found (found ${versionCodeMatches} versionCode, ${versionNameMatches} versionName); aborting before writing any files`
+    );
+  }
+}
+
+fs.writeFileSync(appJsonPath, JSON.stringify(appJson, null, 2) + '\n');
+fs.writeFileSync(pkgJsonPath, JSON.stringify(pkgJson, null, 2) + '\n');
+if (gradle !== null) {
   fs.writeFileSync(gradlePath, gradle);
 }
 
