@@ -54,6 +54,7 @@ import {
   IconButton,
 } from '@/components/ui';
 import { createClient } from '@/lib/supabase/client';
+import { downloadBlob } from '@/lib/download';
 import { SoundSettingsDialog } from '@/components/sound-settings';
 import { McpSettingsDialog } from '@/components/mcp-settings';
 import { NotificationSettingsDialog } from '@/components/notification-settings';
@@ -223,12 +224,7 @@ export function Sidebar({
   async function exportData() {
     const data = await buildExport(createClient());
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `todoer-export-${todayISO()}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadBlob(blob, `todoer-export-${todayISO()}.json`);
   }
 
   return (

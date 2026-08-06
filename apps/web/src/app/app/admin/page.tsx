@@ -29,6 +29,7 @@ import {
 import { useUser } from '@/lib/use-user';
 import { RowSkeleton } from '@/components/loading';
 import { Dialog, DialogContent, Dropdown, DropdownContent, DropdownItem, DropdownSeparator, DropdownTrigger } from '@/components/ui';
+import { downloadBlob } from '@/lib/download';
 
 const BAN_OPTIONS: { label: string; days: number }[] = [
   { label: 'Ban for 1 day', days: 1 },
@@ -125,14 +126,14 @@ function ReasonConfirmDialog({
   onConfirm: (reason: string) => void;
 }) {
   const [reason, setReason] = useState('');
+
+  function close() {
+    setReason('');
+    onOpenChange(false);
+  }
+
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(o) => {
-        onOpenChange(o);
-        if (!o) setReason('');
-      }}
-    >
+    <Dialog open={open} onOpenChange={(o) => !o && close()}>
       <DialogContent title={title} hideClose className="max-w-sm p-5">
         <h2 className="mb-1.5 text-base font-semibold">{title}</h2>
         {message && <p className="mb-3 text-sm text-fg-secondary">{message}</p>}
@@ -147,7 +148,7 @@ function ReasonConfirmDialog({
         <div className="flex justify-end gap-2">
           <button
             type="button"
-            onClick={() => onOpenChange(false)}
+            onClick={close}
             className="rounded-md bg-bg-hover px-3.5 py-2 text-sm font-semibold text-fg-secondary hover:bg-border-strong"
           >
             Cancel
@@ -157,8 +158,7 @@ function ReasonConfirmDialog({
             autoFocus
             onClick={() => {
               onConfirm(reason);
-              onOpenChange(false);
-              setReason('');
+              close();
             }}
             className={clsx(
               'rounded-md px-3.5 py-2 text-sm font-semibold text-white hover:opacity-90',
@@ -188,19 +188,14 @@ function TypedDeleteDialog({
   const [reason, setReason] = useState('');
   const matches = typed.trim().toLowerCase() === email.trim().toLowerCase() && email !== '';
 
-  function reset() {
+  function close() {
     setTyped('');
     setReason('');
+    onOpenChange(false);
   }
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(o) => {
-        onOpenChange(o);
-        if (!o) reset();
-      }}
-    >
+    <Dialog open={open} onOpenChange={(o) => !o && close()}>
       <DialogContent title="Delete this account?" hideClose className="max-w-sm p-5">
         <h2 className="mb-1.5 text-base font-semibold">Delete this account?</h2>
         <p className="mb-3 text-sm text-fg-secondary">
@@ -226,7 +221,7 @@ function TypedDeleteDialog({
         <div className="flex justify-end gap-2">
           <button
             type="button"
-            onClick={() => onOpenChange(false)}
+            onClick={close}
             className="rounded-md bg-bg-hover px-3.5 py-2 text-sm font-semibold text-fg-secondary hover:bg-border-strong"
           >
             Cancel
@@ -236,8 +231,7 @@ function TypedDeleteDialog({
             disabled={!matches}
             onClick={() => {
               onConfirm(reason);
-              onOpenChange(false);
-              reset();
+              close();
             }}
             className="rounded-md bg-p1 px-3.5 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
           >
@@ -542,15 +536,20 @@ export default function AdminPage() {
     if (!adminLoading && admin === false) router.replace('/app/today');
   }, [adminLoading, admin, router]);
 
+  const [exportError, setExportError] = useState<string | null>(null);
+
   async function exportCsv() {
-    const all = await adminListUsers(db, { ...userParams, limit: 200, offset: 0 });
-    const blob = new Blob([toCsv(all)], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `todoer-users-${format(new Date(), 'yyyy-MM-dd')}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    setExportError(null);
+    try {
+      const all = await adminListUsers(db, { ...userParams, limit: 200, offset: 0 });
+      const blob = new Blob([toCsv(all)], { type: 'text/csv' });
+      downloadBlob(blob, `todoer-users-${format(new Date(), 'yyyy-MM-dd')}.csv`);
+      if (userTotal > all.length) {
+        setExportError(`Exported the first ${all.length} of ${userTotal} matching accounts (200-row export limit). Narrow your filters to export the rest.`);
+      }
+    } catch (e) {
+      setExportError(friendlyError(e, 'Could not export users.'));
+    }
   }
 
   if (adminLoading || admin !== true) {
@@ -561,14 +560,16 @@ export default function AdminPage() {
     <div>
       <h1 className="mb-1 text-xl font-bold">Admin</h1>
       <p className="mb-5 text-sm text-fg-secondary">
-        {userTotal ? `${userTotal} account${userTotal === 1 ? '' : 's'}` : 'Loading accounts...'}
+        {usersLoading && !users
+          ? 'Loading accounts...'
+          : `${userTotal} account${userTotal === 1 ? '' : 's'}`}
       </p>
 
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatTile value={stats?.total_users ?? '–'} label="Total users" />
-        <StatTile value={stats ? `+${stats.gained}` : '–'} label={`Gained (${STATS_WINDOW_DAYS}d)`} />
-        <StatTile value={stats?.lost ?? '–'} label={`Lost (${STATS_WINDOW_DAYS}d)`} />
-        <StatTile value={dbStats ? formatBytes(dbStats.db_size_bytes) : '–'} label="Database size" />
+        <StatTile value={stats?.total_users ?? '-'} label="Total users" />
+        <StatTile value={stats ? `+${stats.gained}` : '-'} label={`Gained (${STATS_WINDOW_DAYS}d)`} />
+        <StatTile value={stats?.lost ?? '-'} label={`Lost (${STATS_WINDOW_DAYS}d)`} />
+        <StatTile value={dbStats ? formatBytes(dbStats.db_size_bytes) : '-'} label="Database size" />
       </div>
 
       {dbStats && dbStats.table_sizes.length > 0 && (
@@ -653,6 +654,8 @@ export default function AdminPage() {
               <Download className="h-3.5 w-3.5" /> Export CSV
             </button>
           </div>
+
+          {exportError && <p className="mb-3 text-xs text-p1">{exportError}</p>}
 
           {usersLoading && !users ? (
             <RowSkeleton rows={5} />

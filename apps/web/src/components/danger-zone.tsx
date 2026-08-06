@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { AlertTriangle, Loader2, Trash2 } from 'lucide-react';
 import { buildExport, deleteAccount, friendlyError } from '@todoer/shared';
 import { createClient } from '@/lib/supabase/client';
+import { downloadBlob } from '@/lib/download';
 import { Dialog, DialogContent } from '@/components/ui';
 
 /**
@@ -39,14 +40,8 @@ export function DangerZoneDialog({
   async function exportFirst() {
     const supabase = createClient();
     const data = await buildExport(supabase);
-    const url = URL.createObjectURL(
-      new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }),
-    );
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `todoer-export-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    downloadBlob(blob, `todoer-export-${new Date().toISOString().slice(0, 10)}.json`);
   }
 
   async function remove() {
