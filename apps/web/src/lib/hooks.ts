@@ -2,16 +2,20 @@
 
 import { useEffect, useMemo } from 'react';
 import {
+  keepPreviousData,
   useMutation,
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query';
 import {
   addComment,
-  adminAuditLogSince,
+  adminAuditLogPage,
   adminBanUser,
+  adminDbStats,
   adminDeleteUser,
   adminListUsers,
+  adminSetRole,
+  adminStats,
   completeTask,
   createLabel,
   createProject,
@@ -41,6 +45,7 @@ import {
   updateSection,
   reorderTasks,
   updateTask,
+  type AdminListUsersParams,
   type Label,
   type NewTaskInput,
   type Project,
@@ -498,26 +503,30 @@ export function useIsAdmin() {
   return useQuery({ queryKey: ['is-admin'], queryFn: () => isAdmin(db), staleTime: 5 * 60_000 });
 }
 
-export function useAdminUsers() {
+export function useAdminUsers(params: AdminListUsersParams) {
   const db = useSupabase();
   const { data: admin } = useIsAdmin();
   return useQuery({
-    queryKey: ['admin-users'],
-    queryFn: () => adminListUsers(db),
+    queryKey: ['admin-users', params],
+    queryFn: () => adminListUsers(db, params),
     enabled: admin === true,
+    placeholderData: keepPreviousData,
   });
+}
+
+function invalidateAdmin(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: ['admin-users'] });
+  qc.invalidateQueries({ queryKey: ['admin-stats'] });
+  qc.invalidateQueries({ queryKey: ['admin-audit-log-page'] });
 }
 
 export function useAdminBanUser() {
   const db = useSupabase();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ userId, days }: { userId: string; days: number }) =>
-      adminBanUser(db, userId, days),
-    onSettled: () => {
-      qc.invalidateQueries({ queryKey: ['admin-users'] });
-      qc.invalidateQueries({ queryKey: ['admin-audit-log'] });
-    },
+    mutationFn: ({ userId, days, reason }: { userId: string; days: number; reason?: string }) =>
+      adminBanUser(db, userId, days, reason),
+    onSettled: () => invalidateAdmin(qc),
   });
 }
 
@@ -525,22 +534,85 @@ export function useAdminDeleteUser() {
   const db = useSupabase();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (userId: string) => adminDeleteUser(db, userId),
-    onSettled: () => {
-      qc.invalidateQueries({ queryKey: ['admin-users'] });
-      qc.invalidateQueries({ queryKey: ['admin-audit-log'] });
-    },
+    mutationFn: ({ userId, reason }: { userId: string; reason?: string }) =>
+      adminDeleteUser(db, userId, reason),
+    onSettled: () => invalidateAdmin(qc),
   });
 }
 
-export function useAdminAuditLog(sinceISO: string) {
+export function useAdminSetRole() {
+  const db = useSupabase();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      userId,
+      role,
+      reason,
+    }: {
+      userId: string;
+      role: 'user' | 'admin';
+      reason?: string;
+    }) => adminSetRole(db, userId, role, reason),
+    onSettled: () => invalidateAdmin(qc),
+  });
+}
+
+export function useAdminStats(days = 30) {
   const db = useSupabase();
   const { data: admin } = useIsAdmin();
   return useQuery({
-    queryKey: ['admin-audit-log', sinceISO],
-    queryFn: () => adminAuditLogSince(db, sinceISO),
+    queryKey: ['admin-stats', days],
+    queryFn: () => adminStats(db, days),
     enabled: admin === true,
   });
+}
+
+export function useAdminAuditLogPage(limit: number, offset: number) {
+  const db = useSupabase();
+  const { data: admin } = useIsAdmin();
+  return useQuery({
+    queryKey: ['admin-audit-log-page', limit, offset],
+    queryFn: () => adminAuditLogPage(db, limit, offset),
+    enabled: admin === true,
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useAdminDbStats() {
+  const db = useSupabase();
+  const { data: admin } = useIsAdmin();
+  return useQuery({
+    queryKey: ['admin-db-stats'],
+    queryFn: () => adminDbStats(db),
+    enabled: admin === true,
+    staleTime: 60_000,
+  });
+}
+
+/** New signups and admin actions both refetch the dashboard live, without polling. */
+export function useAdminRealtime(enabled: boolean) {
+  const db = useSupabase();
+  const qc = useQueryClient();
+
+  useEffect(() => {
+    if (!enabled) return;
+
+    const channel = db
+      .channel('todoer-admin-sync')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'profiles' }, () => {
+        qc.invalidateQueries({ queryKey: ['admin-users'] });
+        qc.invalidateQueries({ queryKey: ['admin-stats'] });
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'admin_audit_log' }, () => {
+        invalidateAdmin(qc);
+        qc.invalidateQueries({ queryKey: ['admin-db-stats'] });
+      })
+      .subscribe();
+
+    return () => {
+      db.removeChannel(channel);
+    };
+  }, [db, qc, enabled]);
 }
 
 export type { Label, Project, Section, Task, TaskWithLabels };

@@ -1,6 +1,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type {
-  AdminAuditLogEntry,
+  AdminAuditLogRow,
+  AdminDbStats,
+  AdminListUsersParams,
+  AdminStats,
   AdminUserRow,
   Label,
   NewTaskInput,
@@ -454,31 +457,85 @@ export async function isAdmin(db: Client): Promise<boolean> {
   return Boolean(data);
 }
 
-export async function adminListUsers(db: Client): Promise<AdminUserRow[]> {
-  const { data, error } = await db.rpc('admin_list_users');
+export async function adminListUsers(
+  db: Client,
+  params: AdminListUsersParams = {},
+): Promise<AdminUserRow[]> {
+  const { data, error } = await db.rpc('admin_list_users', {
+    p_search: params.search || null,
+    p_role: params.role || null,
+    p_banned_only: params.bannedOnly ?? false,
+    p_sort: params.sort ?? 'created_at',
+    p_sort_dir: params.sortDir ?? 'desc',
+    p_limit: params.limit ?? 25,
+    p_offset: params.offset ?? 0,
+  });
   throwIf(error);
   return (data ?? []) as AdminUserRow[];
 }
 
 /** Bans a user for `days` days, or unbans immediately when `days` is 0. */
-export async function adminBanUser(db: Client, userId: string, days: number): Promise<void> {
-  const { error } = await db.rpc('admin_ban_user', { p_user_id: userId, p_days: days });
+export async function adminBanUser(
+  db: Client,
+  userId: string,
+  days: number,
+  reason?: string,
+): Promise<void> {
+  const { error } = await db.rpc('admin_ban_user', {
+    p_user_id: userId,
+    p_days: days,
+    p_reason: reason || null,
+  });
   throwIf(error);
 }
 
 /** Permanently deletes another user's account. Cannot target yourself or another admin. */
-export async function adminDeleteUser(db: Client, userId: string): Promise<void> {
-  const { error } = await db.rpc('admin_delete_user', { p_user_id: userId });
+export async function adminDeleteUser(db: Client, userId: string, reason?: string): Promise<void> {
+  const { error } = await db.rpc('admin_delete_user', {
+    p_user_id: userId,
+    p_reason: reason || null,
+  });
   throwIf(error);
 }
 
-/** Ban/unban/delete history, for the admin dashboard's gained/lost stats. RLS restricts reads to admins. */
-export async function adminAuditLogSince(db: Client, sinceISO: string): Promise<AdminAuditLogEntry[]> {
-  const { data, error } = await db
-    .from('admin_audit_log')
-    .select('*')
-    .gte('created_at', sinceISO)
-    .order('created_at', { ascending: false });
+/** Promotes or demotes another user. Cannot target yourself; refuses to demote the last admin. */
+export async function adminSetRole(
+  db: Client,
+  userId: string,
+  role: 'user' | 'admin',
+  reason?: string,
+): Promise<void> {
+  const { error } = await db.rpc('admin_set_role', {
+    p_user_id: userId,
+    p_role: role,
+    p_reason: reason || null,
+  });
   throwIf(error);
-  return (data ?? []) as AdminAuditLogEntry[];
+}
+
+/** Headline dashboard numbers: total users, and gained/lost over the last `days` days. */
+export async function adminStats(db: Client, days = 30): Promise<AdminStats> {
+  const { data, error } = await db.rpc('admin_stats', { p_days: days });
+  throwIf(error);
+  const row = (data ?? [])[0] as AdminStats | undefined;
+  return row ?? { total_users: 0, gained: 0, lost: 0 };
+}
+
+/** Paginated, human-readable audit log (emails joined in) for the audit log viewer. */
+export async function adminAuditLogPage(
+  db: Client,
+  limit = 25,
+  offset = 0,
+): Promise<AdminAuditLogRow[]> {
+  const { data, error } = await db.rpc('admin_audit_log_page', { p_limit: limit, p_offset: offset });
+  throwIf(error);
+  return (data ?? []) as AdminAuditLogRow[];
+}
+
+/** Total DB size and largest tables, for the admin dashboard's storage tile. */
+export async function adminDbStats(db: Client): Promise<AdminDbStats> {
+  const { data, error } = await db.rpc('admin_db_stats');
+  throwIf(error);
+  const row = (data ?? [])[0] as AdminDbStats | undefined;
+  return row ?? { db_size_bytes: 0, table_sizes: [] };
 }

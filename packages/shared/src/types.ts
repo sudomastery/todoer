@@ -9,13 +9,10 @@ export interface Profile {
   created_at: string;
 }
 
-export interface AdminAuditLogEntry {
-  id: string;
-  admin_id: string;
-  action: string;
-  target_user_id: string | null;
-  detail: Record<string, unknown>;
-  created_at: string;
+export interface AdminStats {
+  total_users: number;
+  gained: number;
+  lost: number;
 }
 
 export interface AdminUserRow {
@@ -27,6 +24,35 @@ export interface AdminUserRow {
   created_at: string;
   last_sign_in_at: string | null;
   banned_until: string | null;
+  email_confirmed_at: string | null;
+  total_count: number;
+}
+
+export interface AdminListUsersParams {
+  search?: string;
+  role?: 'user' | 'admin';
+  bannedOnly?: boolean;
+  sort?: 'created_at' | 'last_sign_in_at';
+  sortDir?: 'asc' | 'desc';
+  limit?: number;
+  offset?: number;
+}
+
+export interface AdminAuditLogRow {
+  id: string;
+  admin_id: string | null;
+  admin_email: string | null;
+  action: string;
+  target_user_id: string | null;
+  target_email: string | null;
+  detail: Record<string, unknown>;
+  created_at: string;
+  total_count: number;
+}
+
+export interface AdminDbStats {
+  db_size_bytes: number;
+  table_sizes: { table_name: string; size_bytes: number }[];
 }
 
 export interface Project {
