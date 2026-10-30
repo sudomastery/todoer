@@ -18,8 +18,8 @@ export async function GET(request: NextRequest) {
     { auth: { persistSession: false } },
   );
 
-  // RLS hides every row from the anon role, but the query still runs in Postgres.
-  const { error } = await supabase.from('profiles').select('id', { head: true, count: 'exact' });
+  // anon has no table grants, so call the signup check it is allowed to run.
+  const { error } = await supabase.rpc('username_available', { p_username: 'keepalive' });
   if (error) {
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
   }
